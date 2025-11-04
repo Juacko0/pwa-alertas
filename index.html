@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Alertas Laborales - PWA</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <main class="container">
+    <h1>🚨 Plataforma de Alertas Laborales</h1>
+    <p>Cargando...</p>
+  </main>
+
+  <script>
+    // Redirigir según login
+    const token = localStorage.getItem("token");
+    if (token) {
+      window.location.href = "alertas.html";
+    } else {
+      window.location.href = "login.html";
+    }
+  </script>
+</body>
+</html>
