@@ -76,7 +76,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 🧠 REGISTRO DE SERVICE WORKER + SUSCRIPCIÓN PUSH
   if ("serviceWorker" in navigator && "PushManager" in window) {
     try {
-      const registration = await navigator.serviceWorker.register("/service-worker.js");
       console.log("✅ Service Worker registrado:", registration);
 
       // Obtener clave pública del backend

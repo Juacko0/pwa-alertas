@@ -86,13 +86,13 @@ self.addEventListener("push", (event) => {
   const data = event.data ? event.data.json() : {};
   const title = data.title || "🚨 Nueva Alerta Laboral";
   const body = data.body || "Se ha reportado un nuevo incidente";
-  const icon = "/icon-192.png";
+  const icon = "/icons/icon.png";
 
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
       icon,
-      badge: "/icon-192.png",
+      badge: "/icons/icon.png",
       vibrate: [200, 100, 200],
       data: { url: "/alertas.html" },
       actions: [
