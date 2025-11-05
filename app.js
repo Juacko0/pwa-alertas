@@ -54,35 +54,25 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 🧠 REGISTRO DE SERVICE WORKER + SUSCRIPCIÓN PUSH
   if ("serviceWorker" in navigator && "PushManager" in window) {
     try {
-      // Registrar el Service Worker (nombre corregido)
       const registration = await navigator.serviceWorker.register("/service-workers.js");
       console.log("✅ Service Worker registrado:", registration);
 
-      // Solicitar permiso de notificación al usuario
       const permission = await Notification.requestPermission();
-      console.log("🔔 Permiso de notificación:", permission);
       if (permission !== "granted") {
         console.warn("⚠️ Permiso de notificación denegado.");
         return;
       }
 
-      // Obtener clave pública desde el backend
       const vapidRes = await fetch(`${backendURL}/api/notifications/vapidPublicKey`);
       const vapidPublicKey = await vapidRes.text();
 
-      // Función para convertir clave base64 a Uint8Array
       const urlBase64ToUint8Array = (base64String) => {
         const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
         const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
         const rawData = atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
+        return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
       };
 
-      // Verificar si ya existe una suscripción
       let subscription = await registration.pushManager.getSubscription();
       if (!subscription) {
         subscription = await registration.pushManager.subscribe({
@@ -90,126 +80,87 @@ document.addEventListener("DOMContentLoaded", async () => {
           applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
         });
         console.log("🆕 Nueva suscripción creada:", subscription);
-      } else {
-        console.log("🔁 Ya existe una suscripción:", subscription);
       }
 
-      // Enviar la suscripción al backend junto con el código del profesional
-      const userString = localStorage.getItem("user");
-      const userData = userString ? JSON.parse(userString) : null;
-      const profesionalCodigo = userData?.codigo || null;
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const profesionalCodigo = userData?.codigo;
+      if (!profesionalCodigo) return;
 
-      if (!profesionalCodigo) {
-        console.warn("⚠️ No se encontró el código del profesional. No se puede vincular la suscripción.");
-        return;
-      }
-
-      console.log("📡 Enviando suscripción al backend...");
-      const res = await fetch(`${backendURL}/api/notifications/subscribe`, {
+      await fetch(`${backendURL}/api/notifications/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ subscription, profesionalCodigo }),
       });
-
-      if (res.ok) {
-        console.log(`✅ Suscripción vinculada correctamente al profesional ${profesionalCodigo}`);
-      } else {
-        console.error("❌ Error al registrar la suscripción:", await res.text());
-      }
+      console.log("📡 Suscripción enviada al backend");
     } catch (error) {
-      console.error("❌ Error al registrar el Service Worker o Push:", error);
+      console.error("❌ Error al registrar Service Worker o Push:", error);
     }
-  } else {
-    console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
   }
 
+  // 🧠 Escuchar mensajes del SW para mostrar el modal
   navigator.serviceWorker.addEventListener("message", (event) => {
-  if (event.data?.tipo === "alerta") {
-    mostrarModalAtencion(event.data.mensaje);
-  }
-});
-
-// 🪟 FUNCION PARA MOSTRAR EL MODAL DE ATENCIÓN
-function mostrarModalAtencion(mensaje) {
-  const user = JSON.parse(localStorage.getItem("user"));
-  const codigo = user?.codigo || "Desconocido";
-
-  if (document.getElementById("modalAtencion")) return;
-
-  const modal = document.createElement("div");
-  modal.id = "modalAtencion";
-  modal.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50";
-  modal.innerHTML = `
-    <div class="bg-white rounded-2xl shadow-xl p-6 w-80 text-center">
-      <h2 class="text-lg font-bold mb-3">🚨 Nueva Alerta</h2>
-      <p class="text-gray-700 mb-4">${mensaje}</p>
-      <p class="text-sm text-gray-600 mb-4">
-        Atendido por: <span class="font-bold">${codigo}</span>
-      </p>
-
-      <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
-
-      <div class="flex justify-center space-x-2">
-        <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
-        <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
-      </div>
-    </div>
-  `;
-  document.body.appendChild(modal);
-
-  document.getElementById("btnCancelarAtencion").onclick = () => modal.remove();
-  document.getElementById("btnConfirmarAtencion").onclick = async () => {
-    const detalle = document.getElementById("detalleIncidente").value;
-    await registrarAtencion(codigo, mensaje, detalle);
-    modal.remove();
-    // 🔁 Recargar lista de alertas
-    cargarAlertas();
-  };
-}
-
-async function registrarAtencion(codigo, mensaje, detalle) {
-  try {
-    const token = localStorage.getItem("token");
-    const res = await fetch(`${backendURL}/api/incidents/registerAttention`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        atendidoPor: codigo,
-        detalle: mensaje,
-        detalleExtra: detalle
-      }),
-    });
-
-    if (!res.ok) throw new Error(await res.text());
-    alert("✅ Atención registrada correctamente");
-  } catch (error) {
-    console.error("❌ Error al registrar atención:", error);
-    alert("⚠️ No se pudo registrar la atención");
-  }
-}
-
-
-// 🗄️ ENVIAR AL BACKEND QUIÉN ATENDIÓ LA ALERTA
-async function registrarAtencion(codigo, mensaje) {
-  try {
-    const res = await fetch(`${backendURL}/api/incidents/registerAttention`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        atendidoPor: codigo,
-        detalle: mensaje,
-      }),
-    });
-
-    if (!res.ok) {
-      throw new Error(await res.text());
+    if (event.data?.tipo === "alerta") {
+      mostrarModalAtencion(event.data.mensaje);
     }
-  } catch (error) {
-    console.error("❌ Error al registrar atención:", error);
-    alert("⚠️ No se pudo registrar la atención");
+  });
+
+  // 🪟 FUNCION PARA MOSTRAR EL MODAL DE ATENCIÓN
+  function mostrarModalAtencion(mensaje) {
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const codigo = user?.codigo || "Desconocido";
+
+    if (document.getElementById("modalAtencion")) return;
+
+    const modal = document.createElement("div");
+    modal.id = "modalAtencion";
+    modal.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50";
+    modal.innerHTML = `
+      <div class="bg-white rounded-2xl shadow-xl p-6 w-80 text-center">
+        <h2 class="text-lg font-bold mb-3">🚨 Nueva Alerta</h2>
+        <p class="text-gray-700 mb-4">${mensaje}</p>
+        <p class="text-sm text-gray-600 mb-4">
+          Atendido por: <span class="font-bold">${codigo}</span>
+        </p>
+        <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
+        <div class="flex justify-center space-x-2">
+          <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
+          <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+
+    document.getElementById("btnCancelarAtencion").onclick = () => modal.remove();
+    document.getElementById("btnConfirmarAtencion").onclick = async () => {
+      const detalle = document.getElementById("detalleIncidente").value;
+      await registrarAtencion(codigo, mensaje, detalle);
+      modal.remove();
+      await cargarAlertas(); // 🔁 Recargar lista de alertas
+    };
   }
-}
+
+  // 🗄️ ENVIAR AL BACKEND QUIÉN ATENDIÓ LA ALERTA
+  async function registrarAtencion(codigo, mensaje, detalle) {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${backendURL}/api/incidents/registerAttention`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          atendidoPor: codigo,
+          detalle: mensaje,
+          detalleExtra: detalle
+        }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      alert("✅ Atención registrada correctamente");
+    } catch (error) {
+      console.error("❌ Error al registrar atención:", error);
+      alert("⚠️ No se pudo registrar la atención");
+    }
+  }
 });
