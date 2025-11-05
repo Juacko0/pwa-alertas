@@ -120,14 +120,14 @@ function mostrarModalAtencion(alerta) {
     <div class="bg-white text-black rounded-2xl shadow-xl p-6 w-96 max-h-[90vh] overflow-y-auto">
       <h2 class="text-xl font-bold mb-4">🚨 Nueva Alerta</h2>
 
-      <p class="text-gray-700 mb-2"><b>location:</b> ${alerta.location || "No especificada"}</p>
+      <p class="text-gray-700 mb-2"><b>Ubicación:</b> ${alerta.location || "No especificada"}</p>
       <p class="text-gray-700 mb-2"><b>Residente:</b> ${alerta.residentName || "No registrado"}</p>
-      <p class="text-gray-700 mb-2"><b>detail:</b> ${alerta.detail || "Sin detalle"}</p>
+      <p class="text-gray-700 mb-2"><b>Descripción:</b> ${alerta.detail || "Sin detalle"}</p>
 
       <hr class="my-3">
 
       <p class="text-sm text-gray-600 mb-2">Atendido por: <span class="font-bold">${codigo}</span></p>
-      <textarea id="detail" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
+      <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
 
       <div class="flex justify-center space-x-2">
         <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
