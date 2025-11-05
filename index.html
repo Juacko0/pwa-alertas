@@ -14,20 +14,20 @@
   </main>
 
   <script>
-    // Redirigir según login
-    const token = localStorage.getItem("token");
-    if (token) {
-      window.location.href = "alertas.html";
-    } else {
-      window.location.href = "login.html";
-    }
-  </script>
-  <script>
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("/service-worker.js")
-      .then(() => console.log("✅ Service Worker registrado"))
-      .catch(err => console.error("❌ Error registrando SW:", err));
-  }
+   if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("/service-worker.js")
+    .then(() => {
+      console.log("✅ Service Worker registrado");
+      // Redirigir después de registrar SW
+      const token = localStorage.getItem("token");
+      if (token) {
+        window.location.href = "alertas.html";
+      } else {
+        window.location.href = "login.html";
+      }
+    })
+    .catch(err => console.error("❌ Error registrando SW:", err));
+}
 </script>
 </body>
 </html>

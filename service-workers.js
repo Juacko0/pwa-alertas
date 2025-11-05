@@ -11,8 +11,7 @@ const APP_SHELL = [
   "/styles.css",
   "/app.js",
   "/auth.js",
-  "/icon-192.png",
-  "/icon-512.png"
+  "/icons/icon.png"
 ];
 
 // ============================

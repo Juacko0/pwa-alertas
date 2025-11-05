@@ -17,5 +17,12 @@
   </main>
 
   <script src="app.js"></script>
+  <script>
+if ("Notification" in window) {
+  Notification.requestPermission().then(permission => {
+    console.log("Permiso de notificación:", permission);
+  });
+}
+</script>
 </body>
 </html>
