@@ -51,59 +51,75 @@ document.addEventListener("DOMContentLoaded", async () => {
   // 🚀 Cargar alertas activas al inicio
   await cargarAlertas();
 
-  // 🧠 REGISTRO DE SERVICE WORKER + SUSCRIPCIÓN PUSH
-  if ("serviceWorker" in navigator && "PushManager" in window) {
-    try {
-      // Registrar SW y obtener la referencia
-      const registration = await navigator.serviceWorker.register("/service-workers.js");
-      console.log("✅ Service Worker registrado:", registration);
+// 🧠 REGISTRO DE SERVICE WORKER + SUSCRIPCIÓN PUSH
+if ("serviceWorker" in navigator && "PushManager" in window) {
+  try {
+    // Registrar el Service Worker
+    const registration = await navigator.serviceWorker.register("/service-workers.js");
+    console.log("✅ Service Worker registrado:", registration);
 
-      // Obtener clave pública del backend
-      const vapidRes = await fetch(`${backendURL}/api/notifications/vapidPublicKey`);
-      const vapidPublicKey = await vapidRes.text();
-
-      const urlBase64ToUint8Array = (base64String) => {
-        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-        const rawData = atob(base64);
-        const outputArray = new Uint8Array(rawData.length);
-        for (let i = 0; i < rawData.length; ++i) {
-          outputArray[i] = rawData.charCodeAt(i);
-        }
-        return outputArray;
-      };
-
-      // Verificar si ya está suscrito
-      let subscription = await registration.pushManager.getSubscription();
-
-      if (!subscription) {
-        subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
-        });
-        console.log("🆕 Nueva suscripción creada:", subscription);
-      } else {
-        console.log("🔁 Ya existe una suscripción:", subscription);
-      }
-
-            // Enviar suscripción al backend
-      const profesionalCodigo = userData.codigo || null;
-
-      // 🔹 Aquí agregas los logs antes de enviarlo al backend
-      console.log("🔑 Código profesional:", profesionalCodigo);
-      console.log("📡 Suscripción push:", subscription);
-
-      await fetch(`${backendURL}/api/notifications/subscribe`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ subscription, profesionalCodigo }),
-      });
-
-      console.log("📡 Suscripción registrada con el backend");
-    } catch (error) {
-      console.error("❌ Error al registrar el Service Worker o Push:", error);
+    // Solicitar permiso de notificación al usuario
+    const permission = await Notification.requestPermission();
+    console.log("🔔 Permiso de notificación:", permission);
+    if (permission !== "granted") {
+      console.warn("⚠️ Permiso de notificación denegado.");
+      return;
     }
-  } else {
-    console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
+
+    // Obtener clave pública desde el backend
+    const vapidRes = await fetch(`${backendURL}/api/notifications/vapidPublicKey`);
+    const vapidPublicKey = await vapidRes.text();
+
+    // Función para convertir clave base64 a Uint8Array
+    const urlBase64ToUint8Array = (base64String) => {
+      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+      const rawData = atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    };
+
+    // Verificar si ya existe una suscripción
+    let subscription = await registration.pushManager.getSubscription();
+    if (!subscription) {
+      subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+      console.log("🆕 Nueva suscripción creada:", subscription);
+    } else {
+      console.log("🔁 Ya existe una suscripción:", subscription);
+    }
+
+    // Enviar la suscripción al backend junto con el código del profesional
+    const userString = localStorage.getItem("user");
+    const userData = userString ? JSON.parse(userString) : null;
+    const profesionalCodigo = userData?.codigo || null;
+
+    if (!profesionalCodigo) {
+      console.warn("⚠️ No se encontró el código del profesional. No se puede vincular la suscripción.");
+      return;
+    }
+
+    console.log("📡 Enviando suscripción al backend...");
+    const res = await fetch(`${backendURL}/api/notifications/subscribe`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ subscription, profesionalCodigo }),
+    });
+
+    if (res.ok) {
+      console.log(`✅ Suscripción vinculada correctamente al profesional ${profesionalCodigo}`);
+    } else {
+      console.error("❌ Error al registrar la suscripción:", await res.text());
+    }
+  } catch (error) {
+    console.error("❌ Error al registrar el Service Worker o Push:", error);
   }
+} else {
+  console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
+}
 });
