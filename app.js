@@ -104,40 +104,71 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
-  // 🪟 FUNCION PARA MOSTRAR EL MODAL DE ATENCIÓN
-  function mostrarModalAtencion(mensaje) {
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const codigo = user?.codigo || "Desconocido";
+ // 🪟 FUNCION PARA MOSTRAR EL MODAL DE ATENCIÓN REAL
+function mostrarModalAtencion(alerta) {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const codigo = user?.codigo || "Desconocido";
 
-    if (document.getElementById("modalAtencion")) return;
+  // Evita abrir múltiples modales
+  if (document.getElementById("modalAtencion")) return;
 
-    const modal = document.createElement("div");
-    modal.id = "modalAtencion";
-    modal.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50";
-    modal.innerHTML = `
-      <div class="bg-white rounded-2xl shadow-xl p-6 w-80 text-center">
-        <h2 class="text-lg font-bold mb-3">🚨 Nueva Alerta</h2>
-        <p class="text-gray-700 mb-4">${mensaje}</p>
-        <p class="text-sm text-gray-600 mb-4">
-          Atendido por: <span class="font-bold">${codigo}</span>
-        </p>
-        <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
-        <div class="flex justify-center space-x-2">
-          <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
-          <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
-        </div>
+  const modal = document.createElement("div");
+  modal.id = "modalAtencion";
+  modal.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50";
+
+  modal.innerHTML = `
+    <div class="bg-white text-black rounded-2xl shadow-xl p-6 w-96 max-h-[90vh] overflow-y-auto">
+      <h2 class="text-xl font-bold mb-4">🚨 Nueva Alerta</h2>
+
+      <p class="text-gray-700 mb-2"><b>Ubicación:</b> ${alerta.location || "No especificada"}</p>
+      <p class="text-gray-700 mb-2"><b>Residente:</b> ${alerta.residentName || "No registrado"}</p>
+      <p class="text-gray-700 mb-2"><b>Descripción:</b> ${alerta.detail || "Sin detalle"}</p>
+      <p class="text-gray-700 mb-2"><b>Estado:</b> ${alerta.state || "Pendiente"}</p>
+      <p class="text-gray-700 mb-2"><b>Registrado por:</b> ${alerta.confirmedBy || "Sistema"}</p>
+      <p class="text-gray-700 mb-2"><b>Fecha y hora:</b> ${new Date(alerta.time || Date.now()).toLocaleString()}</p>
+      <p class="text-gray-700 mb-2"><b>Caída real:</b> ${alerta.isFall ? "Sí" : "No"}</p>
+      <p class="text-gray-700 mb-2"><b>Hubo intervención:</b> ${alerta.intervention?.huboIntervencion ? "Sí" : "No"}</p>
+      <p class="text-gray-700 mb-2"><b>Nivel de lesión:</b> ${alerta.intervention?.injuryLevel || "N/A"}</p>
+
+      <hr class="my-3">
+
+      <p class="text-sm text-gray-600 mb-2">Atendido por: <span class="font-bold">${codigo}</span></p>
+      <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
+
+      <div class="flex justify-center space-x-2">
+        <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
+        <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
       </div>
-    `;
-    document.body.appendChild(modal);
+    </div>
+  `;
 
-    document.getElementById("btnCancelarAtencion").onclick = () => modal.remove();
-    document.getElementById("btnConfirmarAtencion").onclick = async () => {
-      const detalle = document.getElementById("detalleIncidente").value;
-      await registrarAtencion(codigo, mensaje, detalle);
-      modal.remove();
-      await cargarAlertas(); // 🔁 Recargar lista de alertas
+  document.body.appendChild(modal);
+
+  // Cerrar modal
+  document.getElementById("btnCancelarAtencion").onclick = () => modal.remove();
+
+  // Confirmar atención
+  document.getElementById("btnConfirmarAtencion").onclick = async () => {
+    const detalle = document.getElementById("detalleIncidente").value;
+
+    // Prepara el objeto completo para enviar al backend
+    const incidentData = {
+      ...alerta,
+      detalleExtra: detalle,
+      atendidoPor: codigo,
+      state: "Atendido",
+      intervention: {
+        ...alerta.intervention,
+        attendedAt: new Date().toISOString(),
+        attendedBy: codigo
+      }
     };
-  }
+
+    await registrarAtencion(codigo, incidentData);
+    modal.remove();
+    await cargarAlertas();
+  };
+}
 
   // 🗄️ ENVIAR AL BACKEND QUIÉN ATENDIÓ LA ALERTA
   async function registrarAtencion(codigo, mensaje, detalle) {
