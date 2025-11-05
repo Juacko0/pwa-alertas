@@ -17,9 +17,14 @@ document.getElementById("loginForm").addEventListener("submit", async (e) => {
 
     if (res.ok && data.token) {
       localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      localStorage.setItem("user", JSON.stringify({
+        usuario,
+        rol: data.rol,
+        codigo: data.codigo
+        }));
       window.location.href = "alertas.html";
-    } else {
+    }
+    else {
       alert("❌ Credenciales inválidas");
     }
   } catch (err) {
