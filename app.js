@@ -111,6 +111,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         console.log("🔁 Ya existe una suscripción:", subscription);
       }
 
+      // 🔹 Aquí agregas los logs antes de enviarlo al backend
+      console.log("🔑 Código profesional:", profesionalCodigo);
+      console.log("📡 Suscripción push:", subscription);
+
       // Enviar suscripción al backend
       const profesionalCodigo = userData.codigo || null;
       await fetch(`${backendURL}/api/notifications/subscribe`, {
