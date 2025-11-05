@@ -16,7 +16,20 @@
   <main id="alertas-lista" class="alertas-container">
     <p>Cargando alertas...</p>
   </main>
-
+  
+  <!-- ✅ Modal para registrar atención -->
+  <div id="modalAtencion" class="modal">
+    <div class="modal-content">
+      <h3>Registrar atención</h3>
+      <p id="modalUbicacion" style="font-weight: 500;"></p>
+      <textarea id="comentarioAdicional" placeholder="Comentario adicional..."></textarea>
+      <div class="modal-buttons">
+        <button id="btnRegistrarAtencion">Aceptar</button>
+        <button id="btnCancelarModal" class="btn-cancelar">Cancelar</button>
+      </div>
+    </div>
+  </div>
+  
   <script src="app.js"></script>
   <script>
   // 🧠 Escuchar mensajes del Service Worker (por si el app.js aún no lo cargó)

@@ -104,7 +104,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
 
- // 🪟 FUNCION PARA MOSTRAR EL MODAL DE ATENCIÓN REAL
+// 🪟 FUNCION PARA MOSTRAR EL MODAL DE ATENCIÓN REAL
 function mostrarModalAtencion(alerta) {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const codigo = user?.codigo || "Desconocido";
@@ -120,20 +120,14 @@ function mostrarModalAtencion(alerta) {
     <div class="bg-white text-black rounded-2xl shadow-xl p-6 w-96 max-h-[90vh] overflow-y-auto">
       <h2 class="text-xl font-bold mb-4">🚨 Nueva Alerta</h2>
 
-      <p class="text-gray-700 mb-2"><b>Ubicación:</b> ${alerta.location || "No especificada"}</p>
+      <p class="text-gray-700 mb-2"><b>location:</b> ${alerta.location || "No especificada"}</p>
       <p class="text-gray-700 mb-2"><b>Residente:</b> ${alerta.residentName || "No registrado"}</p>
-      <p class="text-gray-700 mb-2"><b>Descripción:</b> ${alerta.detail || "Sin detalle"}</p>
-      <p class="text-gray-700 mb-2"><b>Estado:</b> ${alerta.state || "Pendiente"}</p>
-      <p class="text-gray-700 mb-2"><b>Registrado por:</b> ${alerta.confirmedBy || "Sistema"}</p>
-      <p class="text-gray-700 mb-2"><b>Fecha y hora:</b> ${new Date(alerta.time || Date.now()).toLocaleString()}</p>
-      <p class="text-gray-700 mb-2"><b>Caída real:</b> ${alerta.isFall ? "Sí" : "No"}</p>
-      <p class="text-gray-700 mb-2"><b>Hubo intervención:</b> ${alerta.intervention?.huboIntervencion ? "Sí" : "No"}</p>
-      <p class="text-gray-700 mb-2"><b>Nivel de lesión:</b> ${alerta.intervention?.injuryLevel || "N/A"}</p>
+      <p class="text-gray-700 mb-2"><b>detail:</b> ${alerta.detail || "Sin detalle"}</p>
 
       <hr class="my-3">
 
       <p class="text-sm text-gray-600 mb-2">Atendido por: <span class="font-bold">${codigo}</span></p>
-      <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
+      <textarea id="detail" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
 
       <div class="flex justify-center space-x-2">
         <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
@@ -149,49 +143,39 @@ function mostrarModalAtencion(alerta) {
 
   // Confirmar atención
   document.getElementById("btnConfirmarAtencion").onclick = async () => {
-    const detalle = document.getElementById("detalleIncidente").value;
+    const detalleExtra = document.getElementById("detalleIncidente").value.trim();
 
-    // Prepara el objeto completo para enviar al backend
-    const incidentData = {
-      ...alerta,
-      detalleExtra: detalle,
+    await registrarAtencion({
+      id: alerta._id,
       atendidoPor: codigo,
-      state: "Atendido",
-      intervention: {
-        ...alerta.intervention,
-        attendedAt: new Date().toISOString(),
-        attendedBy: codigo
-      }
-    };
+      ubicacion: alerta.location,
+      detalleExtra
+    });
 
-    await registrarAtencion(codigo, incidentData);
     modal.remove();
     await cargarAlertas();
   };
 }
 
-  // 🗄️ ENVIAR AL BACKEND QUIÉN ATENDIÓ LA ALERTA
-  async function registrarAtencion(codigo, mensaje, detalle) {
-    try {
-      const token = localStorage.getItem("token");
-      const res = await fetch(`${backendURL}/api/incidents/addIncident`, {
-        method: "POST",
-        headers: { 
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`
-        },
-        body: JSON.stringify({
-          atendidoPor: codigo,
-          detalle: mensaje,
-          detalleExtra: detalle
-        }),
-      });
+// 🗄️ ENVIAR AL BACKEND QUIÉN ATENDIÓ LA ALERTA
+async function registrarAtencion(data) {
+  try {
+    const token = localStorage.getItem("token");
 
-      if (!res.ok) throw new Error(await res.text());
-      alert("✅ Atención registrada correctamente");
-    } catch (error) {
-      console.error("❌ Error al registrar atención:", error);
-      alert("⚠️ No se pudo registrar la atención");
-    }
+    const res = await fetch(`${backendURL}/api/incidents/addIncident`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify(data),
+    });
+
+    if (!res.ok) throw new Error(await res.text());
+    alert("✅ Atención registrada correctamente");
+  } catch (error) {
+    console.error("❌ Error al registrar atención:", error);
+    alert("⚠️ No se pudo registrar la atención");
   }
+}
 });
