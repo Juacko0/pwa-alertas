@@ -4,41 +4,28 @@ document.addEventListener("DOMContentLoaded", async () => {
   const token = localStorage.getItem("token");
   const lista = document.getElementById("alertas-lista");
   const btnLogout = document.getElementById("btnLogout");
-  const btnHistorial = document.getElementById("btnHistorial");
-  const userString = localStorage.getItem("user");
-  const userData = userString ? JSON.parse(userString) : null;
-  const userName = document.getElementById("user-name");
 
   // 🔐 Verificar sesión
-  if (!token || !userData) {
+  if (!token) {
     window.location.href = "login.html";
     return;
   }
 
-  // 👤 Mostrar nombre del usuario logueado
-  if (userName) {
-    userName.textContent = `👤 Bienvenido, ${userData.nombre || "Usuario"}`;
-  }
-
   // 🚪 Cerrar sesión
-  if (btnLogout) {
     btnLogout.addEventListener("click", () => {
       localStorage.clear();
       window.location.href = "login.html";
     });
-  }
 
   // ⚙️ Función para cargar alertas (activas o historial)
-  const cargarAlertas = async (tipo = "listIncidents") => {
-    lista.innerHTML = `<div class="loader"></div>`;
     try {
-      const res = await fetch(`${backendURL}/api/incidents/${tipo}`, {
+      const res = await fetch(`https://backend-alertas-laborales.onrender.com/api/incidents/listIncidents`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await res.json();
 
       lista.innerHTML = "";
-      if (!Array.isArray(data) || !data.length) {
+      if (!data.length) {
         lista.innerHTML = `<p class="sin-alertas">✅ No hay alertas ${
           tipo === "listIncidents" ? "activas" : "en el historial"
         }.</p>`;
@@ -60,21 +47,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       console.error("❌ Error al cargar alertas:", err);
       lista.innerHTML = "<p>❌ No se pudieron cargar las alertas.</p>";
     }
-  };
 
   // 🚀 Cargar alertas activas al inicio
   await cargarAlertas();
-
-  // 🕒 Ver historial
-  if (btnHistorial) {
-    btnHistorial.addEventListener("click", async () => {
-      btnHistorial.disabled = true;
-      btnHistorial.textContent = "Cargando...";
-      await cargarAlertas("historial");
-      btnHistorial.textContent = "🕒 Ver Historial Completo";
-      btnHistorial.disabled = false;
-    });
-  }
 
   // 🧠 REGISTRO DE SERVICE WORKER + SUSCRIPCIÓN PUSH
   if ("serviceWorker" in navigator && "PushManager" in window) {
@@ -117,7 +92,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       // 🔹 Aquí agregas los logs antes de enviarlo al backend
       console.log("🔑 Código profesional:", profesionalCodigo);
       console.log("📡 Suscripción push:", subscription);
-      
+
       await fetch(`${backendURL}/api/notifications/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
