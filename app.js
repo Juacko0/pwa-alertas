@@ -20,21 +20,27 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // 🚪 Cerrar sesión
-  btnLogout.addEventListener("click", () => {
-    localStorage.clear();
-    window.location.href = "login.html";
-  });
+  if (btnLogout) {
+    btnLogout.addEventListener("click", () => {
+      localStorage.clear();
+      window.location.href = "login.html";
+    });
+  }
 
-  // ⚙️ Función para cargar alertas (activas o historial)
+  // ⚙️ Función para cargar alertas
   const cargarAlertas = async (tipo = "listIncidents") => {
+    if (!lista) return;
     lista.innerHTML = `<div class="loader"></div>`;
     try {
       const res = await fetch(`${backendURL}/api/incidents/${tipo}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const data = await res.json();
 
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+
+      const data = await res.json();
       lista.innerHTML = "";
+
       if (!data.length) {
         lista.innerHTML = `<p class="sin-alertas">✅ No hay alertas ${
           tipo === "listIncidents" ? "activas" : "en el historial"
@@ -59,7 +65,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
-  // 🚀 Cargar alertas activas al inicio
+  // 🚀 Cargar alertas al inicio
   await cargarAlertas();
 
   // 🕒 Ver historial
@@ -73,55 +79,48 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // 🧠 REGISTRO DE SERVICE WORKER + SUSCRIPCIÓN PUSH
+  // 🧠 REGISTRO DE SERVICE WORKER + PUSH
   if ("serviceWorker" in navigator && "PushManager" in window) {
-  try {
-    // Registrar SW y obtener la referencia
-    const registration = await navigator.serviceWorker.register("/service-workers.js");
-    console.log("✅ Service Worker registrado:", registration);
+    try {
+      const registration = await navigator.serviceWorker.register("/service-workers.js");
+      console.log("✅ Service Worker registrado:", registration);
 
-    // Obtener clave pública del backend
-    const vapidRes = await fetch(`${backendURL}/api/notifications/vapidPublicKey`);
-    const vapidPublicKey = await vapidRes.text();
+      // Obtener clave pública
+      const vapidRes = await fetch(`${backendURL}/api/notifications/vapidPublicKey`);
+      const vapidPublicKey = await vapidRes.text();
 
-    const urlBase64ToUint8Array = (base64String) => {
-      const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-      const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-      const rawData = atob(base64);
-      const outputArray = new Uint8Array(rawData.length);
-      for (let i = 0; i < rawData.length; ++i) {
-        outputArray[i] = rawData.charCodeAt(i);
+      const urlBase64ToUint8Array = (base64String) => {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = atob(base64);
+        return new Uint8Array([...rawData].map((c) => c.charCodeAt(0)));
+      };
+
+      let subscription = await registration.pushManager.getSubscription();
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+        console.log("🆕 Nueva suscripción creada:", subscription);
+      } else {
+        console.log("🔁 Ya existe una suscripción:", subscription);
       }
-      return outputArray;
-    };
 
-    // Verificar si ya está suscrito
-    let subscription = await registration.pushManager.getSubscription();
-
-    if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      // Enviar suscripción al backend
+      const profesionalCodigo = userData?.codigo || null;
+      await fetch(`${backendURL}/api/notifications/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription, profesionalCodigo }),
       });
-      console.log("🆕 Nueva suscripción creada:", subscription);
-    } else {
-      console.log("🔁 Ya existe una suscripción:", subscription);
+
+      console.log("📡 Suscripción registrada con el backend");
+    } catch (error) {
+      console.error("❌ Error al registrar SW o Push:", error);
     }
-
-    // Enviar suscripción al backend
-    const profesionalCodigo = userData?.codigo || null;
-    await fetch(`${backendURL}/api/notifications/subscribe`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ subscription, profesionalCodigo }),
-    });
-
-    console.log("📡 Suscripción registrada con el backend");
-  } catch (error) {
-    console.error("❌ Error al registrar el Service Worker o Push:", error);
+  } else {
+    console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
   }
-} else {
-  console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
-}
-
 });
