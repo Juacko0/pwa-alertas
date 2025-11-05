@@ -143,7 +143,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function registrarAtencion(codigo, mensaje, detalle) {
     try {
       const token = localStorage.getItem("token");
-      const res = await fetch(`${backendURL}/api/incidents/registerAttention`, {
+      const res = await fetch(`${backendURL}/api/incidents/addIncident`, {
         method: "POST",
         headers: { 
           "Content-Type": "application/json",
