@@ -5,18 +5,19 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lista = document.getElementById("alertas-lista");
   const btnLogout = document.getElementById("btnLogout");
   const btnHistorial = document.getElementById("btnHistorial");
-  const userData = JSON.parse(localStorage.getItem("user"));
+  const userString = localStorage.getItem("user");
+  const userData = userString ? JSON.parse(userString) : null;
   const userName = document.getElementById("user-name");
 
   // 🔐 Verificar sesión
-  if (!token) {
+  if (!token || !userData) {
     window.location.href = "login.html";
     return;
   }
 
   // 👤 Mostrar nombre del usuario logueado
   if (userName) {
-    userName.textContent = `👤 Bienvenido, ${userData?.nombre || "Usuario"}`;
+    userName.textContent = `👤 Bienvenido, ${userData.nombre || "Usuario"}`;
   }
 
   // 🚪 Cerrar sesión
@@ -27,21 +28,17 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // ⚙️ Función para cargar alertas
+  // ⚙️ Función para cargar alertas (activas o historial)
   const cargarAlertas = async (tipo = "listIncidents") => {
-    if (!lista) return;
     lista.innerHTML = `<div class="loader"></div>`;
     try {
       const res = await fetch(`${backendURL}/api/incidents/${tipo}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-
-      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
-
       const data = await res.json();
-      lista.innerHTML = "";
 
-      if (!data.length) {
+      lista.innerHTML = "";
+      if (!Array.isArray(data) || !data.length) {
         lista.innerHTML = `<p class="sin-alertas">✅ No hay alertas ${
           tipo === "listIncidents" ? "activas" : "en el historial"
         }.</p>`;
@@ -65,7 +62,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   };
 
-  // 🚀 Cargar alertas al inicio
+  // 🚀 Cargar alertas activas al inicio
   await cargarAlertas();
 
   // 🕒 Ver historial
@@ -79,13 +76,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     });
   }
 
-  // 🧠 REGISTRO DE SERVICE WORKER + PUSH
+  // 🧠 REGISTRO DE SERVICE WORKER + SUSCRIPCIÓN PUSH
   if ("serviceWorker" in navigator && "PushManager" in window) {
     try {
+      // Registrar SW y obtener la referencia
       const registration = await navigator.serviceWorker.register("/service-workers.js");
       console.log("✅ Service Worker registrado:", registration);
 
-      // Obtener clave pública
+      // Obtener clave pública del backend
       const vapidRes = await fetch(`${backendURL}/api/notifications/vapidPublicKey`);
       const vapidPublicKey = await vapidRes.text();
 
@@ -93,9 +91,14 @@ document.addEventListener("DOMContentLoaded", async () => {
         const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
         const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
         const rawData = atob(base64);
-        return new Uint8Array([...rawData].map((c) => c.charCodeAt(0)));
+        const outputArray = new Uint8Array(rawData.length);
+        for (let i = 0; i < rawData.length; ++i) {
+          outputArray[i] = rawData.charCodeAt(i);
+        }
+        return outputArray;
       };
 
+      // Verificar si ya está suscrito
       let subscription = await registration.pushManager.getSubscription();
 
       if (!subscription) {
@@ -109,7 +112,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       }
 
       // Enviar suscripción al backend
-      const profesionalCodigo = userData?.codigo || null;
+      const profesionalCodigo = userData.codigo || null;
       await fetch(`${backendURL}/api/notifications/subscribe`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -118,7 +121,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
       console.log("📡 Suscripción registrada con el backend");
     } catch (error) {
-      console.error("❌ Error al registrar SW o Push:", error);
+      console.error("❌ Error al registrar el Service Worker o Push:", error);
     }
   } else {
     console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
