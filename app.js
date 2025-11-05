@@ -55,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if ("serviceWorker" in navigator && "PushManager" in window) {
     try {
       // Registrar el Service Worker (nombre corregido)
-      const registration = await navigator.serviceWorker.register("/service-worker.js");
+      const registration = await navigator.serviceWorker.register("/service-workers.js");
       console.log("✅ Service Worker registrado:", registration);
 
       // Solicitar permiso de notificación al usuario
