@@ -1,4 +1,4 @@
-const backendURL = "https://backend-alertas-laborales.onrender.com";
+const backendURL = "https://pwa-alertas.onrender.com";
 
 document.addEventListener("DOMContentLoaded", async () => {
   const token = localStorage.getItem("token");
