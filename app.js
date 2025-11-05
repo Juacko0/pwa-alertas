@@ -134,7 +134,6 @@ function mostrarModalAtencion(mensaje) {
   const user = JSON.parse(localStorage.getItem("user"));
   const codigo = user?.codigo || "Desconocido";
 
-  // Si ya existe un modal abierto, no crear otro
   if (document.getElementById("modalAtencion")) return;
 
   const modal = document.createElement("div");
@@ -147,6 +146,9 @@ function mostrarModalAtencion(mensaje) {
       <p class="text-sm text-gray-600 mb-4">
         Atendido por: <span class="font-bold">${codigo}</span>
       </p>
+
+      <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
+
       <div class="flex justify-center space-x-2">
         <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
         <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
@@ -157,11 +159,38 @@ function mostrarModalAtencion(mensaje) {
 
   document.getElementById("btnCancelarAtencion").onclick = () => modal.remove();
   document.getElementById("btnConfirmarAtencion").onclick = async () => {
-    await registrarAtencion(codigo, mensaje);
-    alert("✅ Atención registrada correctamente");
+    const detalle = document.getElementById("detalleIncidente").value;
+    await registrarAtencion(codigo, mensaje, detalle);
     modal.remove();
+    // 🔁 Recargar lista de alertas
+    cargarAlertas();
   };
 }
+
+async function registrarAtencion(codigo, mensaje, detalle) {
+  try {
+    const token = localStorage.getItem("token");
+    const res = await fetch(`${backendURL}/api/incidents/registerAttention`, {
+      method: "POST",
+      headers: { 
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        atendidoPor: codigo,
+        detalle: mensaje,
+        detalleExtra: detalle
+      }),
+    });
+
+    if (!res.ok) throw new Error(await res.text());
+    alert("✅ Atención registrada correctamente");
+  } catch (error) {
+    console.error("❌ Error al registrar atención:", error);
+    alert("⚠️ No se pudo registrar la atención");
+  }
+}
+
 
 // 🗄️ ENVIAR AL BACKEND QUIÉN ATENDIÓ LA ALERTA
 async function registrarAtencion(codigo, mensaje) {
