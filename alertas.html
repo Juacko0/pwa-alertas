@@ -19,11 +19,15 @@
 
   <script src="app.js"></script>
   <script>
-if ("Notification" in window) {
-  Notification.requestPermission().then(permission => {
-    console.log("Permiso de notificación:", permission);
-  });
-}
+  // 🧠 Escuchar mensajes del Service Worker (por si el app.js aún no lo cargó)
+  if (navigator.serviceWorker) {
+    navigator.serviceWorker.addEventListener("message", (event) => {
+      if (event.data?.tipo === "alerta") {
+        // 🔁 Reenvía el mensaje al app.js, por compatibilidad
+        window.postMessage(event.data, "*");
+      }
+    });
+  }
 </script>
 </body>
 </html>

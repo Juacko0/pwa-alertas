@@ -122,4 +122,65 @@ document.addEventListener("DOMContentLoaded", async () => {
   } else {
     console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
   }
+
+  navigator.serviceWorker.addEventListener("message", (event) => {
+  if (event.data?.tipo === "alerta") {
+    mostrarModalAtencion(event.data.mensaje);
+  }
+});
+
+// 🪟 FUNCION PARA MOSTRAR EL MODAL DE ATENCIÓN
+function mostrarModalAtencion(mensaje) {
+  const user = JSON.parse(localStorage.getItem("user"));
+  const codigo = user?.codigo || "Desconocido";
+
+  // Si ya existe un modal abierto, no crear otro
+  if (document.getElementById("modalAtencion")) return;
+
+  const modal = document.createElement("div");
+  modal.id = "modalAtencion";
+  modal.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50";
+  modal.innerHTML = `
+    <div class="bg-white rounded-2xl shadow-xl p-6 w-80 text-center">
+      <h2 class="text-lg font-bold mb-3">🚨 Nueva Alerta</h2>
+      <p class="text-gray-700 mb-4">${mensaje}</p>
+      <p class="text-sm text-gray-600 mb-4">
+        Atendido por: <span class="font-bold">${codigo}</span>
+      </p>
+      <div class="flex justify-center space-x-2">
+        <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
+        <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+
+  document.getElementById("btnCancelarAtencion").onclick = () => modal.remove();
+  document.getElementById("btnConfirmarAtencion").onclick = async () => {
+    await registrarAtencion(codigo, mensaje);
+    alert("✅ Atención registrada correctamente");
+    modal.remove();
+  };
+}
+
+// 🗄️ ENVIAR AL BACKEND QUIÉN ATENDIÓ LA ALERTA
+async function registrarAtencion(codigo, mensaje) {
+  try {
+    const res = await fetch(`${backendURL}/api/incidents/registerAttention`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        atendidoPor: codigo,
+        detalle: mensaje,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(await res.text());
+    }
+  } catch (error) {
+    console.error("❌ Error al registrar atención:", error);
+    alert("⚠️ No se pudo registrar la atención");
+  }
+}
 });

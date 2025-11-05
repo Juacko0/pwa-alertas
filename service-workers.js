@@ -89,17 +89,29 @@ self.addEventListener("push", (event) => {
   const icon = "/icons/icon.png";
 
   event.waitUntil(
-    self.registration.showNotification(title, {
-      body,
-      icon,
-      badge: "/icons/icon.png",
-      vibrate: [200, 100, 200],
-      data: { url: "/alertas.html" },
-      actions: [
-        { action: "ver", title: "🔎 Ver alerta" },
-        { action: "cerrar", title: "❌ Cerrar" }
-      ]
-    })
+    (async () => {
+      // Mostrar la notificación
+      await self.registration.showNotification(title, {
+        body,
+        icon,
+        badge: "/icons/icon.png",
+        vibrate: [200, 100, 200],
+        data: { url: "/alertas.html" },
+        actions: [
+          { action: "ver", title: "🔎 Ver alerta" },
+          { action: "cerrar", title: "❌ Cerrar" }
+        ]
+      });
+
+      // 🔁 Enviar mensaje a la app abierta para mostrar el modal automáticamente
+      const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+      for (const client of clientsList) {
+        client.postMessage({
+          tipo: "alerta",
+          mensaje: body
+        });
+      }
+    })()
   );
 });
 
