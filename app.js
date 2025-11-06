@@ -5,7 +5,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lista = document.getElementById("alertas-lista");
   const btnLogout = document.getElementById("btnLogout");
 
-  // Si no hay token, redirige a login
   if (!token) {
     window.location.href = "login.html";
     return;
@@ -16,24 +15,22 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "login.html";
   });
 
-  // Cargar alertas al inicio
   await cargarAlertas();
-
-  // Registrar SW y suscripción push (si aplica)
   await registrarServiceWorkerYSuscripcion();
 
-  // Escuchar mensajes provenientes del Service Worker
+  // variable global para el incidente actual
+  let incidenteSeleccionado = null;
+
+  // Escucha desde SW o mensajes push
   if (navigator.serviceWorker) {
     navigator.serviceWorker.addEventListener("message", (event) => {
       if (event.data?.tipo === "alerta") {
-        // puede venir como string o como objeto
         const payload = parseAlertaPayload(event.data.mensaje);
         mostrarModalAtencion(payload);
       }
     });
   }
 
-  // También escuchar window.postMessage fallback (opcional)
   window.addEventListener("message", (ev) => {
     if (ev.data?.tipo === "alerta") {
       mostrarModalAtencion(parseAlertaPayload(ev.data.mensaje));
@@ -67,11 +64,25 @@ document.addEventListener("DOMContentLoaded", async () => {
           ${alerta.state === "Atendido" ? `
             <p><strong>Atendido por:</strong> ${escapeHtml(alerta.intervention?.attendedBy || "—")}</p>
             <p><strong>Nivel de lesión:</strong> ${escapeHtml(String(alerta.intervention?.injuryLevel || "N/A"))}</p>
-            <p><strong>Hora de atención:</strong> ${alerta.intervention?.attendedAt ? new Date(alerta.intervention.attendedAt).toLocaleString() : "—"}</p>
+            <p><strong>Hora de atención:</strong> ${
+              alerta.intervention?.attendedAt
+                ? new Date(alerta.intervention.attendedAt).toLocaleString()
+                : "—"
+            }</p>
           ` : ""}
           <p><small>Registrado: ${new Date(alerta.createdAt || alerta.time || Date.now()).toLocaleString()}</small></p>
+          ${alerta.state !== "Atendido" ? `<button class="btn-atender" data-id="${alerta._id}">Atender</button>` : ""}
         `;
         lista.appendChild(card);
+      });
+
+      // Asociar botones "Atender"
+      document.querySelectorAll(".btn-atender").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const id = btn.dataset.id;
+          const alerta = data.find((a) => a._id === id);
+          mostrarModalAtencion(alerta);
+        });
       });
     } catch (err) {
       console.error("❌ Error al cargar alertas:", err);
@@ -133,11 +144,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   function parseAlertaPayload(payload) {
-    // payload puede ser string (texto) o objeto serializado
     if (!payload) return { detail: "Nueva alerta" };
     try {
       if (typeof payload === "string") {
-        // intentar parsear JSON o tratar como detalle de texto
         try {
           const parsed = JSON.parse(payload);
           return parsed;
@@ -155,17 +164,14 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   // -----------------------
-  // Modal editable (llama addIncident con la estructura de tu model)
+  // Modal de atención
   // -----------------------
-  function mostrarModalAtencion(alertaObjeto) {
-    const alerta = parseAlertaPayload(alertaObjeto);
+  function mostrarModalAtencion(alerta) {
     const modal = document.getElementById("modalAtencion");
-    if (!modal) {
-      console.error("❌ No existe #modalAtencion en el DOM");
-      return;
-    }
+    if (!modal) return console.error("❌ No existe #modalAtencion en el DOM");
 
-    // Prefill inputs (si vienen vacíos, quedan en blanco para que el usuario complete)
+    incidenteSeleccionado = alerta._id || null;
+
     const locInp = document.getElementById("input-location");
     const resInp = document.getElementById("input-resident");
     const detailInp = document.getElementById("input-detail");
@@ -176,26 +182,17 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     locInp.value = alerta.location || "";
     resInp.value = alerta.residentName || "";
-    detailInp.value = alerta.detail || (typeof alerta === "string" ? alerta : "");
+    detailInp.value = alerta.detail || "";
     isFallInp.checked = Boolean(alerta.isFall);
     huboInp.checked = Boolean(alerta.intervention?.huboIntervencion);
     levelSel.value = String(alerta.intervention?.injuryLevel || "1");
     extraInp.value = "";
 
-    // mostrar modal
     modal.classList.add("show");
     modal.setAttribute("aria-hidden", "false");
 
-    // registrar cuándo se recibió la alerta
-    const receivedAt = new Date().toISOString();
-
-    // botones
     const btnCancelar = document.getElementById("btnCancelarModal");
     const btnRegistrar = document.getElementById("btnRegistrarAtencion");
-
-    // remover listeners previos (por si existían)
-    btnCancelar.onclick = null;
-    btnRegistrar.onclick = null;
 
     btnCancelar.onclick = () => {
       modal.classList.remove("show");
@@ -203,42 +200,50 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     btnRegistrar.onclick = async () => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const codigo = user?.codigo || "Desconocido";
+      if (!incidenteSeleccionado) {
+        alert("⚠️ No se encontró el ID del incidente.");
+        return;
+      }
 
-  const bodyData = {
-    attendedBy: codigo,
-    injuryLevel: parseInt(levelSel.value, 10) || 1,
-    confirmedBy: codigo
-  };
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const codigo = user?.codigo || "Desconocido";
 
-  try {
-    const res = await fetch(`${backendURL}/api/incidents/addIntervention/${alerta._id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(bodyData),
-    });
+      const horaAtencion = new Date().toISOString();
 
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || "Error registrando atención");
-    }
+      const bodyData = {
+        attendedBy: codigo,
+        injuryLevel: parseInt(levelSel.value, 10) || 1,
+        attendedAt: horaAtencion,
+        confirmedBy: codigo,
+      };
 
-    alert("✅ Intervención registrada correctamente");
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-    await cargarAlertas();
-  } catch (err) {
-    console.error("❌ Error al registrar intervención:", err);
-    alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
+      try {
+        const res = await fetch(`${backendURL}/api/incidents/addIntervention/${incidenteSeleccionado}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(bodyData),
+        });
+
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || "Error registrando atención");
+        }
+
+        alert("✅ Intervención registrada correctamente");
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+        await cargarAlertas();
+      } catch (err) {
+        console.error("❌ Error al registrar intervención:", err);
+        alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
+      }
+    };
   }
-};
-  }
 
-  // util: escapar texto simple para insertar en innerHTML cuando no usamos plantilla segura
+  // util
   function escapeHtml(str = "") {
     return String(str)
       .replaceAll("&", "&amp;")
