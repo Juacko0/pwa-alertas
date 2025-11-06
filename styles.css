@@ -1,193 +1,73 @@
-/* ===== ESTILO BASE ===== */
+/* === ESTILO GENERAL === */
 body {
-  font-family: 'Poppins', sans-serif;
+  font-family: "Poppins", sans-serif;
+  background: #0b0c10;
+  color: white;
   margin: 0;
   padding: 0;
-  background: linear-gradient(180deg, #f3f6fa 0%, #e8edf2 100%);
-  color: #333;
-  min-height: 100vh;
 }
 
-/* ===== CONTENEDORES ===== */
-.container, .login-container {
-  width: 90%;
-  max-width: 380px;
-  background: #ffffff;
-  border: 1px solid #dce3ea;
-  border-radius: 16px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.08);
-  padding: 2rem 1.5rem;
-  text-align: center;
-  margin: 3rem auto;
-  animation: fadeIn 0.8s ease-in-out;
+.container {
+  padding: 20px;
+  max-width: 600px;
+  margin: auto;
 }
 
-/* ===== TÍTULOS ===== */
-h2 {
-  color: #ffffff;
-  font-weight: 600;
-  margin-bottom: 1.5rem;
-}
-
-/* ===== INPUTS ===== */
-input {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 1rem;
-  border: 1px solid #ccd4db;
-  border-radius: 10px;
-  background: #f9fbfd;
-  color: #333;
-  font-size: 1rem;
-  outline: none;
-  transition: 0.3s;
-}
-
-input:focus {
-  border-color: #00b4d8;
-  box-shadow: 0 0 8px rgba(0, 180, 216, 0.3);
-}
-
-/* ===== BOTONES ===== */
-button {
-  width: 100%;
-  background: linear-gradient(135deg, #00b4d8, #0077b6);
-  color: white;
-  border: none;
-  padding: 12px;
-  font-size: 1rem;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  box-shadow: 0 0 10px rgba(0, 180, 216, 0.4);
-}
-
-button:hover {
-  transform: scale(1.03);
-  box-shadow: 0 0 15px rgba(0, 180, 216, 0.6);
-}
-
-/* ===== TOPBAR ===== */
-.topbar {
-  background: linear-gradient(90deg, #0077b6, #00b4d8);
-  color: white;
-  padding: 0.9rem 1rem;
+/* === HEADER === */
+.header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
 }
 
-.topbar h2 {
-  margin: 0;
-  font-size: 1.15rem;
-  flex: 1;
-  text-align: left;
-}
-
-/* ==== BOTÓN DE CERRAR SESIÓN (más angosto) ==== */
-#btnLogout {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  padding: 6px 10px;
-  border-radius: 8px;
+.btn-logout {
+  background: #ff4b4b;
   color: white;
-  font-size: 0.85rem;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-size: 0.9em;
   cursor: pointer;
-  white-space: nowrap;
-  transition: 0.3s;
-  width: auto;          /* 👈 ocupa solo lo necesario */
-  min-width: 120px;      /* 👈 ancho mínimo legible */
-  text-align: center;
 }
 
-#btnLogout:hover {
-  background: rgba(255, 255, 255, 0.25);
+.btn-logout:hover {
+  background: #e13a3a;
 }
 
-/* ===== CONTENEDOR DE ALERTAS ===== */
-.alertas-container {
-  padding: 1rem;
+/* === LISTA DE ALERTAS === */
+.alertas-lista {
   display: flex;
   flex-direction: column;
-  gap: 1rem;
+  gap: 12px;
 }
 
-/* ===== TARJETAS DE ALERTA ===== */
 .alerta-card {
-  background: #ffffff;
-  border: 1px solid #dce3ea;
-  border-left: 6px solid #00b4d8;
+  background: #1f2833;
   border-radius: 12px;
-  padding: 1rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  animation: slideUp 0.5s ease forwards;
+  padding: 15px;
+  box-shadow: 0 2px 10px rgba(255, 255, 255, 0.05);
 }
 
-.alerta-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 180, 216, 0.15);
+.alerta-card h3 {
+  margin: 0 0 8px 0;
+  color: #66fcf1;
 }
 
-/* ===== COLORES DE ALERTA SEGÚN TIPO ===== */
-.alerta-card.alerta-critica {
-  border-left-color: #e63946; /* rojo suave */
-  background: #fff5f5;
+.alerta-card p {
+  margin: 4px 0;
+  color: #c5c6c7;
 }
 
-.alerta-card.alerta-moderada {
-  border-left-color: #ffb703; /* amarillo cálido */
-  background: #fffaf0;
-}
-
-.alerta-card.alerta-informativa {
-  border-left-color: #00b4d8; /* azul tranquilo */
-  background: #f2fbff;
-}
-
-/* ===== ANIMACIONES ===== */
-@keyframes fadeIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-
-/* ===== RESPONSIVIDAD ===== */
-@media (max-width: 480px) {
-  .topbar h2 {
-    font-size: 1rem;
-  }
-  #btnLogout {
-    font-size: 0.8rem;
-    padding: 5px 8px;
-  }
-  .alerta-card {
-    font-size: 0.95rem;
-  }
-}
-
-/* ===== MODAL ===== */
+/* === MODAL === */
 .modal {
   display: none;
   position: fixed;
-  z-index: 1000;
-  left: 0;
-  top: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
   justify-content: center;
   align-items: center;
+  z-index: 1000;
 }
 
 .modal.show {
@@ -195,20 +75,27 @@ button:hover {
 }
 
 .modal-content {
-  background: #fff;
-  border-radius: 16px;
+  background: white;
+  color: #222;
   padding: 20px;
+  border-radius: 20px;
   width: 90%;
-  max-width: 400px;
+  max-width: 380px;
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.1);
   text-align: center;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.modal-content h3 {
+  margin-top: 0;
+  color: #007bff;
 }
 
 .modal-content textarea {
   width: 100%;
-  margin-top: 10px;
-  padding: 10px;
+  height: 90px;
+  margin: 10px 0;
   border-radius: 10px;
+  padding: 8px;
   border: 1px solid #ccc;
   resize: none;
 }
@@ -216,9 +103,39 @@ button:hover {
 .modal-buttons {
   display: flex;
   justify-content: space-around;
-  margin-top: 1rem;
+  margin-top: 10px;
+}
+
+.btn-cancelar,
+.btn-confirmar {
+  border: none;
+  padding: 8px 16px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
 }
 
 .btn-cancelar {
-  background: #adb5bd;
+  background: #ccc;
+  color: #222;
+}
+
+.btn-cancelar:hover {
+  background: #aaa;
+}
+
+.btn-confirmar {
+  background: #007bff;
+  color: white;
+}
+
+.btn-confirmar:hover {
+  background: #0060d0;
+}
+
+/* === SIN ALERTAS === */
+.sin-alertas {
+  text-align: center;
+  color: #999;
+  margin-top: 50px;
 }

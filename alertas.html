@@ -3,44 +3,34 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alertas Activas</title>
+  <title>Alertas del Día</title>
   <link rel="stylesheet" href="styles.css" />
-  <link rel="manifest" href="manifest.json" />
 </head>
 <body>
-  <header class="topbar">
-    <h2>🚨 Alertas del Día</h2>
-    <button id="btnLogout">Cerrar sesión</button>
-  </header>
+  <div class="container">
+    <header class="header">
+      <h1>🚨 Alertas del Día</h1>
+      <button id="btnLogout" class="btn-logout">Cerrar sesión</button>
+    </header>
 
-  <main id="alertas-lista" class="alertas-container">
-    <p>Cargando alertas...</p>
-  </main>
-  
-  <!-- ✅ Modal para registrar atención -->
+    <section id="alertas-lista" class="alertas-lista">
+      <p class="sin-alertas">Cargando alertas...</p>
+    </section>
+  </div>
+
+  <!-- MODAL DE ATENCIÓN -->
   <div id="modalAtencion" class="modal">
     <div class="modal-content">
-      <h3>Registrar atención</h3>
-      <p id="modalUbicacion" style="font-weight: 500;"></p>
-      <textarea id="comentarioAdicional" placeholder="Comentario adicional..."></textarea>
+      <h3>🚨 Nueva Alerta</h3>
+      <p><b>Ubicación:</b> <span id="modalUbicacion"></span></p>
+      <textarea id="comentarioAdicional" placeholder="Escribe los detalles de la atención..."></textarea>
       <div class="modal-buttons">
-        <button id="btnRegistrarAtencion">Aceptar</button>
         <button id="btnCancelarModal" class="btn-cancelar">Cancelar</button>
+        <button id="btnRegistrarAtencion" class="btn-confirmar">Aceptar</button>
       </div>
     </div>
   </div>
-  
+
   <script src="app.js"></script>
-  <script>
-  // 🧠 Escuchar mensajes del Service Worker (por si el app.js aún no lo cargó)
-  if (navigator.serviceWorker) {
-    navigator.serviceWorker.addEventListener("message", (event) => {
-      if (event.data?.tipo === "alerta") {
-        // 🔁 Reenvía el mensaje al app.js, por compatibilidad
-        window.postMessage(event.data, "*");
-      }
-    });
-  }
-</script>
 </body>
 </html>
