@@ -108,7 +108,7 @@ self.addEventListener("push", (event) => {
       for (const client of clientsList) {
         client.postMessage({
           tipo: "alerta",
-          mensaje: body
+          mensaje: data.data || data // 👈 Enviar el objeto completo con _id, location, etc.
         });
       }
     })()
