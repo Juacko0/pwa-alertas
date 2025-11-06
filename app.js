@@ -203,54 +203,39 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
 
     btnRegistrar.onclick = async () => {
-      // armar objeto que respete tu schema
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const codigo = user?.codigo || null;
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const codigo = user?.codigo || "Desconocido";
 
-      const incidentData = {
-        location: locInp.value.trim() || "Ubicación no especificada",
-        time: new Date().toISOString(),
-        residentName: resInp.value.trim() || "No registrado",
-        detail: detailInp.value.trim() || "Sin detalle",
-        state: "Atendido",
-        isFall: Boolean(isFallInp.checked),
-        confirmedBy: codigo,
-        intervention: {
-          huboIntervencion: Boolean(huboInp.checked),
-          receivedAt: receivedAt,
-          attendedAt: new Date().toISOString(),
-          attendedBy: codigo,
-          injuryLevel: parseInt(levelSel.value, 10) || 1
-        },
-        // campo extra libre
-        detalleExtra: extraInp.value.trim() || ""
-      };
+  const bodyData = {
+    attendedBy: codigo,
+    injuryLevel: parseInt(levelSel.value, 10) || 1,
+    confirmedBy: codigo
+  };
 
-      try {
-        const tokenLocal = localStorage.getItem("token");
-        const res = await fetch(`${backendURL}/api/incidents/addIncident`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${tokenLocal}`,
-          },
-          body: JSON.stringify(incidentData),
-        });
+  try {
+    const res = await fetch(`${backendURL}/api/incidents/addIntervention/${alerta._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(bodyData),
+    });
 
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt || "Error registrando atención");
-        }
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Error registrando atención");
+    }
 
-        alert("✅ Atención registrada correctamente");
-        modal.classList.remove("show");
-        modal.setAttribute("aria-hidden", "true");
-        await cargarAlertas();
-      } catch (err) {
-        console.error("❌ Error al registrar atención:", err);
-        alert("⚠️ No se pudo registrar la atención. Revisa la consola.");
-      }
-    };
+    alert("✅ Intervención registrada correctamente");
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    await cargarAlertas();
+  } catch (err) {
+    console.error("❌ Error al registrar intervención:", err);
+    alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
+  }
+};
   }
 
   // util: escapar texto simple para insertar en innerHTML cuando no usamos plantilla segura
