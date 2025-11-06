@@ -60,7 +60,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         const card = document.createElement("div");
         card.className = "alerta-card";
         card.innerHTML = `
-          <h3>${escapeHtml(alerta.residentName) || "No registrado"}</h3>
+          <h3>${escapeHtml(alerta.reportedBy || alerta.residentName || "No registrado")}</h3>
           <p><strong>Ubicación:</strong> ${escapeHtml(alerta.location || "Ubicación no especificada")}</p>
           <p><strong>Detalle:</strong> ${escapeHtml(alerta.detail || "Sin detalle")}</p>
           <p><strong>Estado:</strong> ${escapeHtml(alerta.state || "Pendiente")}</p>
