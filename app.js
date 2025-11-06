@@ -155,82 +155,95 @@ document.addEventListener("DOMContentLoaded", async () => {
   // Modal de atención
   // -----------------------
   function mostrarModalAtencion(alerta) {
-    const modal = document.getElementById("modalAtencion");
-    if (!modal) return console.error("❌ No existe #modalAtencion en el DOM");
+  const modal = document.getElementById("modalAtencion");
+  if (!modal) return console.error("❌ No existe #modalAtencion en el DOM");
 
-    if (!alerta || !alerta._id) {
-      alert("⚠️ No se puede abrir el modal: alerta sin ID válido.");
+  console.log("🧩 Datos de la alerta recibida:", alerta);
+
+  // Detectar ID correctamente (puede ser _id, id o incidentId)
+  const incidenteID = alerta._id || alerta.id || alerta.incidentId || null;
+  if (!incidenteID) {
+    console.warn("⚠️ No se puede abrir el modal: alerta sin ID válido.");
+    alert("⚠️ No se puede abrir el modal: alerta sin ID válido.");
+    return;
+  }
+
+  // Guardar el ID globalmente
+  incidenteSeleccionado = incidenteID;
+
+  // Referencias
+  const locInp = document.getElementById("input-location");
+  const resInp = document.getElementById("input-resident");
+  const detailInp = document.getElementById("input-detail");
+  const isFallInp = document.getElementById("input-isFall");
+  const huboInp = document.getElementById("input-huboIntervencion");
+  const levelSel = document.getElementById("input-injuryLevel");
+  const extraInp = document.getElementById("input-detalleExtra");
+
+  // Rellenar datos
+  locInp.value = alerta.location || "";
+  resInp.value = alerta.residentName || "";
+  detailInp.value = alerta.detail || "";
+  isFallInp.checked = Boolean(alerta.isFall);
+  huboInp.checked = Boolean(alerta.intervention?.huboIntervencion);
+  levelSel.value = String(alerta.intervention?.injuryLevel || "1");
+  extraInp.value = "";
+
+  // Mostrar modal
+  modal.classList.add("show");
+  modal.setAttribute("aria-hidden", "false");
+
+  // Botones
+  const btnCancelar = document.getElementById("btnCancelarModal");
+  const btnRegistrar = document.getElementById("btnRegistrarAtencion");
+
+  btnCancelar.onclick = () => {
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+  };
+
+  btnRegistrar.onclick = async () => {
+    if (!incidenteSeleccionado) {
+      alert("⚠️ No se encontró el ID del incidente.");
       return;
     }
 
-    incidenteSeleccionado = alerta._id; // ✅ Se asigna correctamente
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const codigo = user?.codigo || "Desconocido";
+    const horaAtencion = new Date().toISOString();
 
-    // Cargar datos en campos
-    document.getElementById("input-location").value = alerta.location || "";
-    document.getElementById("input-resident").value = alerta.residentName || "";
-    document.getElementById("input-detail").value = alerta.detail || "";
-    document.getElementById("input-isFall").checked = Boolean(alerta.isFall);
-    document.getElementById("input-huboIntervencion").checked = Boolean(alerta.intervention?.huboIntervencion);
-    document.getElementById("input-injuryLevel").value = String(alerta.intervention?.injuryLevel || "1");
-    document.getElementById("input-detalleExtra").value = "";
+    const bodyData = {
+      attendedBy: codigo,
+      injuryLevel: parseInt(levelSel.value, 10) || 1,
+      attendedAt: horaAtencion,
+      confirmedBy: codigo,
+    };
 
-    modal.classList.add("show");
-    modal.setAttribute("aria-hidden", "false");
+    try {
+      const res = await fetch(`${backendURL}/api/incidents/addIntervention/${incidenteSeleccionado}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${localStorage.getItem("token")}`,
+        },
+        body: JSON.stringify(bodyData),
+      });
 
-    const btnCancelar = document.getElementById("btnCancelarModal");
-    const btnRegistrar = document.getElementById("btnRegistrarAtencion");
+      if (!res.ok) {
+        const txt = await res.text();
+        throw new Error(txt || "Error registrando atención");
+      }
 
-    btnCancelar.onclick = () => {
+      alert("✅ Intervención registrada correctamente");
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
-      incidenteSeleccionado = null;
-    };
-
-    btnRegistrar.onclick = async () => {
-      if (!incidenteSeleccionado) {
-        alert("⚠️ No se encontró el ID del incidente.");
-        return;
-      }
-
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const codigo = user?.codigo || "Desconocido";
-
-      // 🕒 Hora local
-      const horaAtencion = new Date().toLocaleString("es-PE", { hour12: false });
-
-      const bodyData = {
-        attendedBy: codigo,
-        injuryLevel: parseInt(document.getElementById("input-injuryLevel").value, 10) || 1,
-        attendedAt: horaAtencion,
-        confirmedBy: codigo,
-      };
-
-      try {
-        const res = await fetch(`${backendURL}/api/incidents/addIntervention/${incidenteSeleccionado}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify(bodyData),
-        });
-
-        if (!res.ok) {
-          const txt = await res.text();
-          throw new Error(txt || "Error registrando atención");
-        }
-
-        alert("✅ Intervención registrada correctamente");
-        modal.classList.remove("show");
-        modal.setAttribute("aria-hidden", "true");
-        limpiarCamposModal();
-        await cargarAlertas();
-      } catch (err) {
-        console.error("❌ Error al registrar intervención:", err);
-        alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
-      }
-    };
-  }
+      await cargarAlertas();
+    } catch (err) {
+      console.error("❌ Error al registrar intervención:", err);
+      alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
+    }
+  };
+}
 
   function limpiarCamposModal() {
     document.getElementById("input-location").value = "";
