@@ -122,13 +122,16 @@ self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const data = event.notification.data || {};
+  
+  // Forzar que _id exista
+  if (!data._id && data.id) data._id = data.id;
 
   event.waitUntil(
     (async () => {
       const allClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
       const appUrl = new URL("/alertas.html", self.location.origin).href;
 
-      // Si ya hay una ventana abierta, la enfocamos y enviamos la alerta
+      // Si ya hay una ventana abierta, enfocarla y enviar mensaje
       for (const client of allClients) {
         if (client.url.startsWith(appUrl) && "focus" in client) {
           client.focus();
@@ -137,7 +140,7 @@ self.addEventListener("notificationclick", (event) => {
         }
       }
 
-      // Si no hay ventana abierta, abrimos una nueva con la alerta en query string
+      // Si no hay ventana abierta, abrir nueva con alertaData
       const params = new URLSearchParams({
         alertaData: JSON.stringify(data),
       });

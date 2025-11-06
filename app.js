@@ -1,21 +1,21 @@
 const backendURL = "https://backend-alertas-laborales.onrender.com";
 
 document.addEventListener("DOMContentLoaded", async () => {
-    // 📦 Si la app se abrió desde una notificación, leer los datos desde la URL
+  // 📦 Si la app se abrió desde una notificación, leer los datos desde la URL
   const urlParams = new URLSearchParams(window.location.search);
-const alertaData = urlParams.get("alertaData");
-if (alertaData) {
-  try {
-    const parsed = JSON.parse(alertaData);
-    console.log("🚨 App abierta desde notificación:", parsed);
-    // mostrar modal después de cargar la UI
-    setTimeout(() => {
-      mostrarModalAtencion(parsed);
-    }, 500); // 0.5s para asegurarse que el DOM esté listo
-  } catch (e) {
-    console.error("❌ No se pudo parsear alerta desde notificación:", e);
+  const alertaData = urlParams.get("alertaData");
+  if (alertaData) {
+    try {
+      const parsed = JSON.parse(alertaData);
+      console.log("🚨 App abierta desde notificación:", parsed);
+      // mostrar modal después de cargar la UI
+      setTimeout(() => {
+        mostrarModalAtencion(parsed);
+      }, 500); // 0.5s para asegurarse que el DOM esté listo
+    } catch (e) {
+      console.error("❌ No se pudo parsear alerta desde notificación:", e);
+    }
   }
-}
   const token = localStorage.getItem("token");
   const lista = document.getElementById("alertas-lista");
   const btnLogout = document.getElementById("btnLogout");
@@ -174,6 +174,14 @@ if (alertaData) {
   // -----------------------
   function mostrarModalAtencion(alertaObjeto) {
     const alerta = parseAlertaPayload(alertaObjeto);
+
+    // ❗ Verificación de _id antes de permitir registrar intervención
+  if (!alerta._id) {
+    console.warn("🚨 Alerta sin _id, no se podrá registrar intervención");
+    // aquí puedes decidir bloquear el modal o solo mostrar info
+    // por ejemplo, solo mostrar modal sin permitir registrar
+    // return; // <-- descomenta si quieres bloquear
+  }
     const modal = document.getElementById("modalAtencion");
     if (!modal) {
       console.error("❌ No existe #modalAtencion en el DOM");
@@ -217,49 +225,49 @@ if (alertaData) {
       modal.setAttribute("aria-hidden", "true");
     };
 
-   btnRegistrar.onclick = async () => {
-  const user = JSON.parse(localStorage.getItem("user") || "{}");
-  const codigo = user?.codigo || "Desconocido";
+    btnRegistrar.onclick = async () => {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const codigo = user?.codigo || "Desconocido";
 
-  // ✅ Leemos todos los campos que el usuario puede editar en el modal
-  const reportedBy = document.getElementById("input-resident")?.value?.trim() || "No registrado";
-  const location = document.getElementById("input-location")?.value?.trim() || "Sin ubicación especificada";
-  const detail = document.getElementById("input-detail")?.value?.trim() || "Sin detalles adicionales";
-  const injuryLevel = parseInt(document.getElementById("input-injuryLevel")?.value, 10) || 1;
+      // ✅ Leemos todos los campos que el usuario puede editar en el modal
+      const reportedBy = document.getElementById("input-resident")?.value?.trim() || "No registrado";
+      const location = document.getElementById("input-location")?.value?.trim() || "Sin ubicación especificada";
+      const detail = document.getElementById("input-detail")?.value?.trim() || "Sin detalles adicionales";
+      const injuryLevel = parseInt(document.getElementById("input-injuryLevel")?.value, 10) || 1;
 
-  const bodyData = {
-    attendedBy: codigo,
-    injuryLevel,
-    confirmedBy: codigo,
-    reportedBy,
-    location,
-    detail
-  };
+      const bodyData = {
+        attendedBy: codigo,
+        injuryLevel,
+        confirmedBy: codigo,
+        reportedBy,
+        location,
+        detail
+      };
 
-  try {
-    const res = await fetch(`${backendURL}/api/incidents/addIntervention/${alerta._id}`, {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("token")}`,
-      },
-      body: JSON.stringify(bodyData),
-    });
+      try {
+        const res = await fetch(`${backendURL}/api/incidents/addIntervention/${alerta._id}`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+          body: JSON.stringify(bodyData),
+        });
 
-    if (!res.ok) {
-      const txt = await res.text();
-      throw new Error(txt || "Error registrando atención");
-    }
+        if (!res.ok) {
+          const txt = await res.text();
+          throw new Error(txt || "Error registrando atención");
+        }
 
-    alert("✅ Intervención registrada correctamente");
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-    await cargarAlertas();
-  } catch (err) {
-    console.error("❌ Error al registrar intervención:", err);
-    alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
-  }
-};
+        alert("✅ Intervención registrada correctamente");
+        modal.classList.remove("show");
+        modal.setAttribute("aria-hidden", "true");
+        await cargarAlertas();
+      } catch (err) {
+        console.error("❌ Error al registrar intervención:", err);
+        alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
+      }
+    };
   }
 
   // util: escapar texto simple para insertar en innerHTML cuando no usamos plantilla segura
