@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lista = document.getElementById("alertas-lista");
   const btnLogout = document.getElementById("btnLogout");
 
+  // Si no hay token, redirige a login
   if (!token) {
     window.location.href = "login.html";
     return;
@@ -15,23 +16,24 @@ document.addEventListener("DOMContentLoaded", async () => {
     window.location.href = "login.html";
   });
 
+  // Cargar alertas al inicio
   await cargarAlertas();
+
+  // Registrar SW y suscripción push (si aplica)
   await registrarServiceWorkerYSuscripcion();
 
-  let incidenteSeleccionado = null; // 🔹 Guardará el ID del incidente actual
-
-  // -----------------------
-  // Escucha de notificaciones
-  // -----------------------
+  // Escuchar mensajes provenientes del Service Worker
   if (navigator.serviceWorker) {
     navigator.serviceWorker.addEventListener("message", (event) => {
       if (event.data?.tipo === "alerta") {
+        // puede venir como string o como objeto
         const payload = parseAlertaPayload(event.data.mensaje);
         mostrarModalAtencion(payload);
       }
     });
   }
 
+  // También escuchar window.postMessage fallback (opcional)
   window.addEventListener("message", (ev) => {
     if (ev.data?.tipo === "alerta") {
       mostrarModalAtencion(parseAlertaPayload(ev.data.mensaje));
@@ -39,7 +41,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // -----------------------
-  // Función: Cargar alertas
+  // Funciones
   // -----------------------
   async function cargarAlertas() {
     try {
@@ -65,29 +67,11 @@ document.addEventListener("DOMContentLoaded", async () => {
           ${alerta.state === "Atendido" ? `
             <p><strong>Atendido por:</strong> ${escapeHtml(alerta.intervention?.attendedBy || "—")}</p>
             <p><strong>Nivel de lesión:</strong> ${escapeHtml(String(alerta.intervention?.injuryLevel || "N/A"))}</p>
-            <p><strong>Hora de atención:</strong> ${
-              alerta.intervention?.attendedAt
-                ? new Date(alerta.intervention.attendedAt).toLocaleString("es-PE")
-                : "—"
-            }</p>
+            <p><strong>Hora de atención:</strong> ${alerta.intervention?.attendedAt ? new Date(alerta.intervention.attendedAt).toLocaleString() : "—"}</p>
           ` : ""}
-          <p><small>Registrado: ${new Date(alerta.createdAt || alerta.time || Date.now()).toLocaleString("es-PE")}</small></p>
-          ${alerta.state !== "Atendido" ? `<button class="btn-atender" data-id="${alerta._id}">Atender</button>` : ""}
+          <p><small>Registrado: ${new Date(alerta.createdAt || alerta.time || Date.now()).toLocaleString()}</small></p>
         `;
         lista.appendChild(card);
-      });
-
-      // Asociar botones "Atender"
-      document.querySelectorAll(".btn-atender").forEach((btn) => {
-        btn.addEventListener("click", () => {
-          const id = btn.dataset.id;
-          const alerta = data.find((a) => a._id === id);
-          if (!alerta) {
-            alert("⚠️ No se encontró la alerta seleccionada.");
-            return;
-          }
-          mostrarModalAtencion(alerta);
-        });
       });
     } catch (err) {
       console.error("❌ Error al cargar alertas:", err);
@@ -95,9 +79,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // -----------------------
-  // Registrar Service Worker
-  // -----------------------
   async function registrarServiceWorkerYSuscripcion() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
@@ -151,113 +132,113 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // -----------------------
-  // Modal de atención
-  // -----------------------
-  function mostrarModalAtencion(alerta) {
-  const modal = document.getElementById("modalAtencion");
-  if (!modal) return console.error("❌ No existe #modalAtencion en el DOM");
-
-  console.log("🧩 Datos de la alerta recibida:", alerta);
-
-  // Detectar ID correctamente (puede ser _id, id o incidentId)
-  const incidenteID = alerta._id || alerta.id || alerta.incidentId || null;
-  if (!incidenteID) {
-    console.warn("⚠️ No se puede abrir el modal: alerta sin ID válido.");
-    alert("⚠️ No se puede abrir el modal: alerta sin ID válido.");
-    return;
+  function parseAlertaPayload(payload) {
+    // payload puede ser string (texto) o objeto serializado
+    if (!payload) return { detail: "Nueva alerta" };
+    try {
+      if (typeof payload === "string") {
+        // intentar parsear JSON o tratar como detalle de texto
+        try {
+          const parsed = JSON.parse(payload);
+          return parsed;
+        } catch {
+          return { detail: payload };
+        }
+      } else if (typeof payload === "object") {
+        return payload;
+      } else {
+        return { detail: String(payload) };
+      }
+    } catch {
+      return { detail: "Nueva alerta" };
+    }
   }
 
-  // Guardar el ID globalmente
-  incidenteSeleccionado = incidenteID;
-
-  // Referencias
-  const locInp = document.getElementById("input-location");
-  const resInp = document.getElementById("input-resident");
-  const detailInp = document.getElementById("input-detail");
-  const isFallInp = document.getElementById("input-isFall");
-  const huboInp = document.getElementById("input-huboIntervencion");
-  const levelSel = document.getElementById("input-injuryLevel");
-  const extraInp = document.getElementById("input-detalleExtra");
-
-  // Rellenar datos
-  locInp.value = alerta.location || "";
-  resInp.value = alerta.residentName || "";
-  detailInp.value = alerta.detail || "";
-  isFallInp.checked = Boolean(alerta.isFall);
-  huboInp.checked = Boolean(alerta.intervention?.huboIntervencion);
-  levelSel.value = String(alerta.intervention?.injuryLevel || "1");
-  extraInp.value = "";
-
-  // Mostrar modal
-  modal.classList.add("show");
-  modal.setAttribute("aria-hidden", "false");
-
-  // Botones
-  const btnCancelar = document.getElementById("btnCancelarModal");
-  const btnRegistrar = document.getElementById("btnRegistrarAtencion");
-
-  btnCancelar.onclick = () => {
-    modal.classList.remove("show");
-    modal.setAttribute("aria-hidden", "true");
-  };
-
-  btnRegistrar.onclick = async () => {
-    if (!incidenteSeleccionado) {
-      alert("⚠️ No se encontró el ID del incidente.");
+  // -----------------------
+  // Modal editable (llama addIncident con la estructura de tu model)
+  // -----------------------
+  function mostrarModalAtencion(alertaObjeto) {
+    const alerta = parseAlertaPayload(alertaObjeto);
+    const modal = document.getElementById("modalAtencion");
+    if (!modal) {
+      console.error("❌ No existe #modalAtencion en el DOM");
       return;
     }
 
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const codigo = user?.codigo || "Desconocido";
-    const horaAtencion = new Date().toISOString();
+    // Prefill inputs (si vienen vacíos, quedan en blanco para que el usuario complete)
+    const locInp = document.getElementById("input-location");
+    const resInp = document.getElementById("input-resident");
+    const detailInp = document.getElementById("input-detail");
+    const isFallInp = document.getElementById("input-isFall");
+    const huboInp = document.getElementById("input-huboIntervencion");
+    const levelSel = document.getElementById("input-injuryLevel");
+    const extraInp = document.getElementById("input-detalleExtra");
 
-    const bodyData = {
-      attendedBy: codigo,
-      injuryLevel: parseInt(levelSel.value, 10) || 1,
-      attendedAt: horaAtencion,
-      confirmedBy: codigo,
-    };
+    locInp.value = alerta.location || "";
+    resInp.value = alerta.residentName || "";
+    detailInp.value = alerta.detail || (typeof alerta === "string" ? alerta : "");
+    isFallInp.checked = Boolean(alerta.isFall);
+    huboInp.checked = Boolean(alerta.intervention?.huboIntervencion);
+    levelSel.value = String(alerta.intervention?.injuryLevel || "1");
+    extraInp.value = "";
 
-    try {
-      const res = await fetch(`${backendURL}/api/incidents/addIntervention/${incidenteSeleccionado}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
-        },
-        body: JSON.stringify(bodyData),
-      });
+    // mostrar modal
+    modal.classList.add("show");
+    modal.setAttribute("aria-hidden", "false");
 
-      if (!res.ok) {
-        const txt = await res.text();
-        throw new Error(txt || "Error registrando atención");
-      }
+    // registrar cuándo se recibió la alerta
+    const receivedAt = new Date().toISOString();
 
-      alert("✅ Intervención registrada correctamente");
+    // botones
+    const btnCancelar = document.getElementById("btnCancelarModal");
+    const btnRegistrar = document.getElementById("btnRegistrarAtencion");
+
+    // remover listeners previos (por si existían)
+    btnCancelar.onclick = null;
+    btnRegistrar.onclick = null;
+
+    btnCancelar.onclick = () => {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
-      await cargarAlertas();
-    } catch (err) {
-      console.error("❌ Error al registrar intervención:", err);
-      alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
-    }
-  };
-}
+    };
 
-  function limpiarCamposModal() {
-    document.getElementById("input-location").value = "";
-    document.getElementById("input-resident").value = "";
-    document.getElementById("input-detail").value = "";
-    document.getElementById("input-isFall").checked = false;
-    document.getElementById("input-huboIntervencion").checked = false;
-    document.getElementById("input-injuryLevel").value = "1";
-    document.getElementById("input-detalleExtra").value = "";
+    btnRegistrar.onclick = async () => {
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+  const codigo = user?.codigo || "Desconocido";
+
+  const bodyData = {
+    attendedBy: codigo,
+    injuryLevel: parseInt(levelSel.value, 10) || 1,
+    confirmedBy: codigo
+  };
+
+  try {
+    const res = await fetch(`${backendURL}/api/incidents/addIntervention/${alerta._id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${localStorage.getItem("token")}`,
+      },
+      body: JSON.stringify(bodyData),
+    });
+
+    if (!res.ok) {
+      const txt = await res.text();
+      throw new Error(txt || "Error registrando atención");
+    }
+
+    alert("✅ Intervención registrada correctamente");
+    modal.classList.remove("show");
+    modal.setAttribute("aria-hidden", "true");
+    await cargarAlertas();
+  } catch (err) {
+    console.error("❌ Error al registrar intervención:", err);
+    alert("⚠️ No se pudo registrar la intervención. Revisa la consola.");
+  }
+};
   }
 
-  // -----------------------
-  // Utilidad para sanitizar HTML
-  // -----------------------
+  // util: escapar texto simple para insertar en innerHTML cuando no usamos plantilla segura
   function escapeHtml(str = "") {
     return String(str)
       .replaceAll("&", "&amp;")
@@ -265,23 +246,5 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
-  }
-
-  function parseAlertaPayload(payload) {
-    if (!payload) return { detail: "Nueva alerta" };
-    try {
-      if (typeof payload === "string") {
-        try {
-          return JSON.parse(payload);
-        } catch {
-          return { detail: payload };
-        }
-      } else if (typeof payload === "object") {
-        return payload;
-      }
-      return { detail: String(payload) };
-    } catch {
-      return { detail: "Nueva alerta" };
-    }
   }
 });
