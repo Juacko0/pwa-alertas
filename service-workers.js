@@ -109,11 +109,11 @@ self.addEventListener("push", (event) => {
         client.postMessage({
           tipo: "alerta",
           mensaje: {
-            _id: data._id,
-            location: data.location,
-            detail: data.detail,
-            isFall: data.isFall,
-            createdAt: data.createdAt
+            _id: data.data?._id || data._id,
+            location: data.data?.location || data.location,
+            detail: data.data?.detail || data.detail,
+            isFall: data.data?.isFall || data.isFall,
+            createdAt: data.data?.createdAt || data.createdAt
           }
         });
       }
