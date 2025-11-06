@@ -121,12 +121,29 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  if (event.action === "ver") {
-    event.waitUntil(clients.openWindow(event.notification.data.url));
-  } else if (event.action === "cerrar") {
-    // Solo cierra la notificación
-  } else {
-    // Si hace clic fuera de los botones, abre la app igual
-    event.waitUntil(clients.openWindow("/alertas.html"));
-  }
+  const data = event.notification.data || {};
+
+  // Guardamos temporalmente la alerta en IndexedDB o localStorage simulada con clients.openWindow
+  event.waitUntil(
+    (async () => {
+      const allClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
+      const appUrl = new URL("/alertas.html", self.location.origin).href;
+
+      // Si ya hay una ventana abierta, la enfocamos y le enviamos el mensaje
+      for (const client of allClients) {
+        if (client.url === appUrl && "focus" in client) {
+          client.focus();
+          client.postMessage({ tipo: "alerta", mensaje: data });
+          return;
+        }
+      }
+
+      // Si no hay una ventana abierta, abrimos una nueva y le pasamos los datos por querystring
+      const params = new URLSearchParams({
+        alertaData: JSON.stringify(data),
+      });
+      await clients.openWindow(`${appUrl}?${params.toString()}`);
+    })()
+  );
 });
+

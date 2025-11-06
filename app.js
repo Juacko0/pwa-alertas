@@ -1,6 +1,21 @@
 const backendURL = "https://backend-alertas-laborales.onrender.com";
 
 document.addEventListener("DOMContentLoaded", async () => {
+    // 📦 Si la app se abrió desde una notificación, leer los datos desde la URL
+  const urlParams = new URLSearchParams(window.location.search);
+  const alertaData = urlParams.get("alertaData");
+  if (alertaData) {
+    try {
+      const parsed = JSON.parse(alertaData);
+      console.log("🚨 App abierta desde notificación:", parsed);
+      // Esperar un momento a que cargue la UI y mostrar el modal
+      setTimeout(() => {
+        mostrarModalAtencion(parsed);
+      }, 800);
+    } catch (e) {
+      console.error("❌ No se pudo parsear alerta desde notificación:", e);
+    }
+  }
   const token = localStorage.getItem("token");
   const lista = document.getElementById("alertas-lista");
   const btnLogout = document.getElementById("btnLogout");
