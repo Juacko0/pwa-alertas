@@ -235,10 +235,3 @@ body {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.modal.hidden {
-  display: none;
-}
-
-.modal.show {
-  display: flex;
-}

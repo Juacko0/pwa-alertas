@@ -3,49 +3,31 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alertas Activas</title>
+  <title>Alertas del Día</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header class="header">
-    <h2>🚨 Alertas del Día</h2>
-    <button id="btnLogout">Cerrar Sesión</button>
-  </header>
+  <div class="container">
+    <header class="header">
+      <h1>🚨 Alertas del Día</h1>
+      <button id="btnLogout" class="btn-logout">Cerrar sesión</button>
+    </header>
 
-  <main id="alertas-lista" class="alertas-container">
-    <p>Cargando alertas...</p>
-  </main>
+    <section id="alertas-lista" class="alertas-lista">
+      <p class="sin-alertas">Cargando alertas...</p>
+    </section>
+  </div>
 
-  <!-- ✅ Modal (oculto por defecto) -->
-  <div id="modal-alerta" class="modal">
+  <!-- MODAL DE ATENCIÓN -->
+  <div id="modalAtencion" class="modal">
     <div class="modal-content">
-      <h3>🆘 Nueva Alerta Detectada</h3>
-
-      <form id="alertaForm">
-        <label>📍 Ubicación</label>
-        <input type="text" id="location" placeholder="Ej: Habitación 2A" required />
-
-        <label>👵 Residente</label>
-        <input type="text" id="residentName" placeholder="Nombre del residente" required />
-
-        <label>📝 Detalle del incidente</label>
-        <textarea id="detail" rows="3" placeholder="Descripción breve del evento"></textarea>
-
-        <label>⚠️ Nivel de lesión</label>
-        <select id="injuryLevel">
-          <option value="1">Leve</option>
-          <option value="2">Moderada</option>
-          <option value="3">Grave</option>
-        </select>
-
-        <label>👨‍⚕️ Encargado que atiende</label>
-        <input type="text" id="attendedBy" placeholder="Nombre o código del encargado" required />
-
-        <div class="modal-buttons">
-          <button type="button" id="btnCancelar">Cancelar</button>
-          <button type="submit" id="btnGuardar">Registrar Atención</button>
-        </div>
-      </form>
+      <h3>🚨 Nueva Alerta</h3>
+      <p><b>Ubicación:</b> <span id="modalUbicacion"></span></p>
+      <textarea id="comentarioAdicional" placeholder="Escribe los detalles de la atención..."></textarea>
+      <div class="modal-buttons">
+        <button id="btnCancelarModal" class="btn-cancelar">Cancelar</button>
+        <button id="btnRegistrarAtencion" class="btn-confirmar">Aceptar</button>
+      </div>
     </div>
   </div>
 
