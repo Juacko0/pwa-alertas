@@ -112,72 +112,101 @@ function mostrarModalAtencion(alerta) {
   // Evita abrir múltiples modales
   if (document.getElementById("modalAtencion")) return;
 
+  // Crear fondo y centrar modal
   const modal = document.createElement("div");
   modal.id = "modalAtencion";
-  modal.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50";
+  modal.className = `
+    fixed inset-0 z-50 flex items-center justify-center 
+    bg-black bg-opacity-50
+  `;
 
   modal.innerHTML = `
-  <div class="bg-white text-black rounded-2xl shadow-xl p-6 w-11/12 max-w-md max-h-[90vh] overflow-y-auto flex flex-col justify-between">
-    <div>
-      <h2 class="text-xl font-bold mb-4">🚨 Nueva Alerta</h2>
+    <div class="bg-white text-black rounded-2xl shadow-xl p-6 w-11/12 max-w-md max-h-[90vh] overflow-y-auto flex flex-col">
+      <h2 class="text-xl font-bold mb-4 text-center">🚨 Nueva Alerta</h2>
 
-      <p class="text-gray-700 mb-2"><b>Ubicación:</b> ${alerta.location || "No especificada"}</p>
-      <p class="text-gray-700 mb-2"><b>Residente:</b> ${alerta.residentName || "No registrado"}</p>
-      <p class="text-gray-700 mb-2"><b>Descripción:</b> ${alerta.detail || "Sin detalle"}</p>
+      <label class="block mb-1"><b>Ubicación:</b></label>
+      <input id="input-location" type="text" class="border w-full p-2 mb-3 rounded" placeholder="Ej: Zona de descanso">
+
+      <label class="block mb-1"><b>Residente:</b></label>
+      <input id="input-resident" type="text" class="border w-full p-2 mb-3 rounded" placeholder="Ej: Juan Pérez">
+
+      <label class="block mb-1"><b>Descripción:</b></label>
+      <textarea id="input-detail" class="border w-full p-2 mb-3 rounded" rows="3" placeholder="Ej: Caída leve cerca del pasillo"></textarea>
+
+      <div class="flex items-center mb-3">
+        <input id="input-isFall" type="checkbox" class="mr-2">
+        <label for="input-isFall">💥 Fue una caída real</label>
+      </div>
+
+      <div class="flex items-center mb-3">
+        <input id="input-huboIntervencion" type="checkbox" class="mr-2">
+        <label for="input-huboIntervencion">🩺 Hubo intervención</label>
+      </div>
+
+      <label class="block mb-2"><b>Nivel de lesión:</b></label>
+      <select id="input-injuryLevel" class="border w-full p-2 mb-4 rounded">
+        <option value="1">1 - Leve</option>
+        <option value="2">2 - Moderada</option>
+        <option value="3">3 - Grave</option>
+      </select>
 
       <hr class="my-3">
 
       <p class="text-sm text-gray-600 mb-2">Atendido por: <span class="font-bold">${codigo}</span></p>
-      <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
-    </div>
 
-    <div class="flex justify-center space-x-2 mt-2">
-      <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
-      <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
+      <textarea id="detalleIncidente" class="border w-full p-2 mb-3 rounded" placeholder="Detalles adicionales..."></textarea>
+
+      <div class="flex justify-center space-x-2 mt-2">
+        <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded">Cancelar</button>
+        <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">Confirmar</button>
+      </div>
     </div>
-  </div>
-`;
+  `;
 
   document.body.appendChild(modal);
 
-  // Cerrar modal
+  // Cancelar
   document.getElementById("btnCancelarAtencion").onclick = () => modal.remove();
 
   // Confirmar atención
   document.getElementById("btnConfirmarAtencion").onclick = async () => {
-    const detalleExtra = document.getElementById("detalleIncidente").value.trim();
+    const incidentData = {
+      location: document.getElementById("input-location").value || "Ubicación no especificada",
+      residentName: document.getElementById("input-resident").value || "No registrado",
+      detail: document.getElementById("input-detail").value || "Sin detalle",
+      state: document.getElementById("input-huboIntervencion").checked ? "Atendido" : "Pendiente",
+      isFall: document.getElementById("input-isFall").checked,
+      confirmedBy: codigo,
+      intervention: {
+        huboIntervencion: document.getElementById("input-huboIntervencion").checked,
+        attendedAt: document.getElementById("input-huboIntervencion").checked ? new Date().toISOString() : null,
+        attendedBy: document.getElementById("input-huboIntervencion").checked ? codigo : null,
+        injuryLevel: parseInt(document.getElementById("input-injuryLevel").value),
+      },
+      detalleExtra: document.getElementById("detalleIncidente").value
+    };
 
-    await registrarAtencion({
-      id: alerta._id,
-      atendidoPor: codigo,
-      ubicacion: alerta.location,
-      detalleExtra
-    });
+    // Enviar al backend
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${backendURL}/api/incidents/addIncident`, {
+        method: "POST",
+        headers: { 
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify(incidentData),
+      });
 
-    modal.remove();
-    await cargarAlertas();
+      if (!res.ok) throw new Error(await res.text());
+      alert("✅ Atención registrada correctamente");
+      modal.remove();
+      await cargarAlertas();
+    } catch (error) {
+      console.error("❌ Error al registrar atención:", error);
+      alert("⚠️ No se pudo registrar la atención");
+    }
   };
 }
 
-// 🗄️ ENVIAR AL BACKEND QUIÉN ATENDIÓ LA ALERTA
-async function registrarAtencion(data) {
-  try {
-    const token = localStorage.getItem("token");
-
-    const res = await fetch(`${backendURL}/api/incidents/addIncident`, {
-      method: "POST",
-      headers: { 
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${token}`
-      },
-      body: JSON.stringify(data),
-    });
-
-    if (!res.ok) throw new Error(await res.text());
-    alert("✅ Atención registrada correctamente");
-  } catch (error) {
-    console.error("❌ Error al registrar atención:", error);
-    alert("⚠️ No se pudo registrar la atención");
-  }
-}
 });
