@@ -23,7 +23,16 @@
     <div class="modal-content">
       <h3>🚨 Nueva Alerta</h3>
       <p><b>Ubicación:</b> <span id="modalUbicacion"></span></p>
+
+      <label>⚠️ Nivel de lesión:</label>
+      <select id="nivelLesion">
+        <option value="1">Leve</option>
+        <option value="2">Moderada</option>
+        <option value="3">Grave</option>
+      </select>
+
       <textarea id="comentarioAdicional" placeholder="Escribe los detalles de la atención..."></textarea>
+
       <div class="modal-buttons">
         <button id="btnCancelarModal" class="btn-cancelar">Cancelar</button>
         <button id="btnRegistrarAtencion" class="btn-confirmar">Aceptar</button>

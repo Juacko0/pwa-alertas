@@ -5,19 +5,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   const lista = document.getElementById("alertas-lista");
   const btnLogout = document.getElementById("btnLogout");
 
-  // 🔐 Verificar sesión
   if (!token) {
     window.location.href = "login.html";
     return;
   }
 
-  // 🚪 Cerrar sesión
   btnLogout.addEventListener("click", () => {
     localStorage.clear();
     window.location.href = "login.html";
   });
 
-  // ⚙️ Cargar alertas
+  // === CARGAR ALERTAS ===
   async function cargarAlertas() {
     try {
       const res = await fetch(`${backendURL}/api/incidents/listIncidents`, {
@@ -38,6 +36,13 @@ document.addEventListener("DOMContentLoaded", async () => {
           <h3>${alerta.location}</h3>
           <p>${alerta.detail}</p>
           <p><b>Estado:</b> ${alerta.state}</p>
+          ${
+            alerta.state === "Atendido"
+              ? `<p><b>Atendido por:</b> ${alerta.intervention?.attendedBy}</p>
+                 <p><b>Nivel de lesión:</b> ${alerta.intervention?.injuryLevel}</p>
+                 <p><b>Hora de atención:</b> ${new Date(alerta.intervention?.attendedAt).toLocaleString()}</p>`
+              : ""
+          }
           <p><b>Registrado:</b> ${new Date(alerta.createdAt).toLocaleString()}</p>
         `;
         lista.appendChild(card);
@@ -50,7 +55,7 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   await cargarAlertas();
 
-  // 🧠 SERVICE WORKER + PUSH
+  // === SERVICE WORKER ===
   if ("serviceWorker" in navigator && "PushManager" in window) {
     try {
       const registration = await navigator.serviceWorker.register("/service-workers.js");
@@ -92,14 +97,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  // 📩 Escuchar mensajes del Service Worker
+  // === ESCUCHAR ALERTAS DEL SERVICE WORKER ===
   navigator.serviceWorker.addEventListener("message", (event) => {
     if (event.data?.tipo === "alerta") {
       mostrarModalAtencion(event.data.mensaje);
     }
   });
 
-  // 🪟 Mostrar modal de atención
+  // === MOSTRAR MODAL ===
   function mostrarModalAtencion(alerta) {
     const modal = document.getElementById("modalAtencion");
     const user = JSON.parse(localStorage.getItem("user") || "{}");
@@ -107,8 +112,12 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     document.getElementById("modalUbicacion").textContent = alerta.location || "Ubicación no especificada";
     document.getElementById("comentarioAdicional").value = "";
+    document.getElementById("nivelLesion").value = "1";
 
     modal.classList.add("show");
+
+    // 🔹 Registrar cuándo se recibió la alerta
+    const receivedAt = new Date().toISOString();
 
     document.getElementById("btnCancelarModal").onclick = () => {
       modal.classList.remove("show");
@@ -116,14 +125,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 
     document.getElementById("btnRegistrarAtencion").onclick = async () => {
       const detalle = document.getElementById("comentarioAdicional").value;
-      await registrarAtencion(codigo, alerta, detalle);
+      const nivel = parseInt(document.getElementById("nivelLesion").value);
+      await registrarAtencion(codigo, alerta, detalle, receivedAt, nivel);
       modal.classList.remove("show");
       await cargarAlertas();
     };
   }
 
-  // 🗄️ Registrar atención
-  async function registrarAtencion(codigo, alerta, detalle) {
+  // === REGISTRAR ATENCIÓN ===
+  async function registrarAtencion(codigo, alerta, detalle, receivedAt, nivelLesion) {
     try {
       const token = localStorage.getItem("token");
       const res = await fetch(`${backendURL}/api/incidents/addIncident`, {
@@ -133,14 +143,17 @@ document.addEventListener("DOMContentLoaded", async () => {
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          atendidoPor: codigo,
-          detalleExtra: detalle,
           location: alerta.location || "Ubicación no especificada",
-          detail: alerta.detail || "Sin detalle",
+          detail: detalle || alerta.detail || "Sin detalle",
           state: "Atendido",
+          isFall: true,
+          confirmedBy: codigo,
           intervention: {
+            huboIntervencion: true,
+            receivedAt,
             attendedAt: new Date().toISOString(),
             attendedBy: codigo,
+            injuryLevel: nivelLesion,
           },
         }),
       });
