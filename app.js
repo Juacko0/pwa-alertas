@@ -1,149 +1,168 @@
+const backendURL = "https://backend-alertas-laborales.onrender.com";
+
 document.addEventListener("DOMContentLoaded", async () => {
-  console.log("✅ Página de alertas cargada");
-  obtenerAlertas();
-  iniciarSocket(); // Para notificaciones en tiempo real
-});
+  const token = localStorage.getItem("token");
+  const lista = document.getElementById("alertas-lista");
+  const btnLogout = document.getElementById("btnLogout");
 
-// ===============================
-// 🔄 Obtener alertas activas
-// ===============================
-async function obtenerAlertas() {
-  const contenedor = document.getElementById("alertas-lista");
-  contenedor.innerHTML = "<p>Cargando alertas...</p>";
+  if (!token) {
+    window.location.href = "login.html";
+    return;
+  }
 
-  try {
-    const res = await fetch("https://backend-alertas-laborales.onrender.com/api/incidents");
-    const incidentes = await res.json();
+  btnLogout.addEventListener("click", () => {
+    localStorage.clear();
+    window.location.href = "login.html";
+  });
 
-    if (!incidentes.length) {
-      contenedor.innerHTML = "<p>No hay alertas registradas.</p>";
-      return;
+  // === CARGAR ALERTAS ===
+  async function cargarAlertas() {
+    try {
+      const res = await fetch(`${backendURL}/api/incidents/listIncidents`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+
+      lista.innerHTML = "";
+      if (!data.length) {
+        lista.innerHTML = `<p class="sin-alertas">✅ No hay alertas activas.</p>`;
+        return;
+      }
+
+      data.forEach((alerta) => {
+        const card = document.createElement("div");
+        card.className = "alerta-card futuristic-card";
+        card.innerHTML = `
+          <h3>${alerta.location}</h3>
+          <p>${alerta.detail}</p>
+          <p><b>Estado:</b> ${alerta.state}</p>
+          ${
+            alerta.state === "Atendido"
+              ? `<p><b>Atendido por:</b> ${alerta.intervention?.attendedBy}</p>
+                 <p><b>Nivel de lesión:</b> ${alerta.intervention?.injuryLevel}</p>
+                 <p><b>Hora de atención:</b> ${new Date(alerta.intervention?.attendedAt).toLocaleString()}</p>`
+              : ""
+          }
+          <p><b>Registrado:</b> ${new Date(alerta.createdAt).toLocaleString()}</p>
+        `;
+        lista.appendChild(card);
+      });
+    } catch (err) {
+      console.error("❌ Error al cargar alertas:", err);
+      lista.innerHTML = "<p>❌ No se pudieron cargar las alertas.</p>";
     }
-
-    contenedor.innerHTML = "";
-    incidentes.forEach((inc) => {
-      const div = document.createElement("div");
-      div.className = `alerta ${inc.state === "Pendiente" ? "pendiente" : "atendida"}`;
-      div.innerHTML = `
-        <h3>${inc.residentName || "Sin nombre"}</h3>
-        <p><strong>Ubicación:</strong> ${inc.location}</p>
-        <p><strong>Detalle:</strong> ${inc.detail || "Sin detalle"}</p>
-        <p><strong>Estado:</strong> ${inc.state}</p>
-        <p><strong>Registrado:</strong> ${new Date(inc.time).toLocaleString()}</p>
-      `;
-      contenedor.appendChild(div);
-    });
-  } catch (err) {
-    console.error("❌ Error al cargar alertas:", err);
-    document.getElementById("alertas-lista").innerHTML = "<p>Error al obtener las alertas.</p>";
   }
-}
 
-// ===============================
-// 🧠 WebSocket / Simulación de alerta
-// ===============================
-function iniciarSocket() {
-  console.log("🌐 Escuchando nuevas alertas...");
-  // Simulación: crear modal cuando llega alerta
-  setTimeout(() => {
-    abrirModalAtencion({
-      location: "Ubicación no especificada",
-      residentName: "",
-      detail: "",
-      intervention: { injuryLevel: 1, huboIntervencion: false },
-      isFall: false,
-      state: "Pendiente",
-    });
-  }, 2000);
-}
+  await cargarAlertas();
 
-// ===============================
-// 🧱 Modal de atención editable
-// ===============================
-function abrirModalAtencion(incidente) {
-  if (document.getElementById("modal-atencion")) return;
+  // === SERVICE WORKER ===
+  if ("serviceWorker" in navigator && "PushManager" in window) {
+    try {
+      const registration = await navigator.serviceWorker.register("/service-workers.js");
+      console.log("✅ Service Worker registrado:", registration);
 
-  const modal = document.createElement("div");
-  modal.id = "modal-atencion";
-  modal.className = "modal-overlay";
+      const permission = await Notification.requestPermission();
+      if (permission !== "granted") return;
 
-  modal.innerHTML = `
-    <div class="modal-content">
-      <h2>🚨 Nueva Alerta</h2>
+      const vapidRes = await fetch(`${backendURL}/api/notifications/vapidPublicKey`);
+      const vapidPublicKey = await vapidRes.text();
 
-      <label>📍 Ubicación:</label>
-      <input id="inp-location" type="text" class="input" value="${incidente.location || ""}">
+      const urlBase64ToUint8Array = (base64String) => {
+        const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+        const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
+        const rawData = atob(base64);
+        return new Uint8Array([...rawData].map(c => c.charCodeAt(0)));
+      };
 
-      <label>👤 Residente:</label>
-      <input id="inp-resident" type="text" class="input" value="${incidente.residentName || ""}">
+      let subscription = await registration.pushManager.getSubscription();
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+        });
+      }
 
-      <label>📝 Detalle:</label>
-      <textarea id="inp-detail" class="input" rows="2" placeholder="Describe el incidente...">${incidente.detail || ""}</textarea>
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const profesionalCodigo = userData?.codigo;
+      if (!profesionalCodigo) return;
 
-      <div class="check-group">
-        <input type="checkbox" id="inp-isFall" ${incidente.isFall ? "checked" : ""}>
-        <label for="inp-isFall">💥 Fue una caída real</label>
-      </div>
-
-      <div class="check-group">
-        <input type="checkbox" id="inp-huboIntervencion" ${incidente.intervention?.huboIntervencion ? "checked" : ""}>
-        <label for="inp-huboIntervencion">🩺 Hubo intervención</label>
-      </div>
-
-      <label>⚕️ Nivel de lesión:</label>
-      <select id="inp-injuryLevel" class="input">
-        <option value="1" ${incidente.intervention?.injuryLevel === 1 ? "selected" : ""}>1 - Leve</option>
-        <option value="2" ${incidente.intervention?.injuryLevel === 2 ? "selected" : ""}>2 - Moderada</option>
-        <option value="3" ${incidente.intervention?.injuryLevel === 3 ? "selected" : ""}>3 - Grave</option>
-      </select>
-
-      <div class="modal-buttons">
-        <button id="btn-cancelar" class="btn-cancelar">Cancelar</button>
-        <button id="btn-guardar" class="btn-guardar">Aceptar</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  document.getElementById("btn-cancelar").onclick = () => modal.remove();
-  document.getElementById("btn-guardar").onclick = () => registrarAtencion(modal);
-}
-
-// ===============================
-// 💾 Registrar atención
-// ===============================
-async function registrarAtencion(modal) {
-  const incidente = {
-    location: document.getElementById("inp-location").value || "Ubicación no especificada",
-    residentName: document.getElementById("inp-resident").value || "No registrado",
-    detail: document.getElementById("inp-detail").value || "Sin detalle",
-    isFall: document.getElementById("inp-isFall").checked,
-    confirmedBy: window.userData?.nombre || "Personal Geriátrico",
-    intervention: {
-      huboIntervencion: document.getElementById("inp-huboIntervencion").checked,
-      receivedAt: new Date(),
-      attendedAt: new Date(),
-      attendedBy: window.userData?.nombre || "Desconocido",
-      injuryLevel: parseInt(document.getElementById("inp-injuryLevel").value),
-    },
-    state: "Atendido",
-  };
-
-  try {
-    const res = await fetch("https://backend-alertas-laborales.onrender.com/api/incidents/addIncident", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(incidente),
-    });
-
-    if (!res.ok) throw new Error("Error al registrar la atención");
-
-    alert("✅ Atención registrada correctamente");
-    modal.remove();
-    obtenerAlertas();
-  } catch (err) {
-    console.error("❌ Error al guardar atención:", err);
-    alert("Error al registrar la atención. Revisa la consola.");
+      await fetch(`${backendURL}/api/notifications/subscribe`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ subscription, profesionalCodigo }),
+      });
+      console.log("📡 Suscripción enviada al backend");
+    } catch (error) {
+      console.error("❌ Error al registrar Service Worker o Push:", error);
+    }
   }
-}
+
+  // === ESCUCHAR ALERTAS DEL SERVICE WORKER ===
+  navigator.serviceWorker.addEventListener("message", (event) => {
+    if (event.data?.tipo === "alerta") {
+      mostrarModalAtencion(event.data.mensaje);
+    }
+  });
+
+  // === MOSTRAR MODAL ===
+  function mostrarModalAtencion(alerta) {
+    const modal = document.getElementById("modalAtencion");
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const codigo = user?.codigo || "Desconocido";
+
+    document.getElementById("modalUbicacion").textContent = alerta.location || "Ubicación no especificada";
+    document.getElementById("comentarioAdicional").value = "";
+    document.getElementById("nivelLesion").value = "1";
+
+    modal.classList.add("show");
+
+    // 🔹 Registrar cuándo se recibió la alerta
+    const receivedAt = new Date().toISOString();
+
+    document.getElementById("btnCancelarModal").onclick = () => {
+      modal.classList.remove("show");
+    };
+
+    document.getElementById("btnRegistrarAtencion").onclick = async () => {
+      const detalle = document.getElementById("comentarioAdicional").value;
+      const nivel = parseInt(document.getElementById("nivelLesion").value);
+      await registrarAtencion(codigo, alerta, detalle, receivedAt, nivel);
+      modal.classList.remove("show");
+      await cargarAlertas();
+    };
+  }
+
+  // === REGISTRAR ATENCIÓN ===
+  async function registrarAtencion(codigo, alerta, detalle, receivedAt, nivelLesion) {
+    try {
+      const token = localStorage.getItem("token");
+      const res = await fetch(`${backendURL}/api/incidents/addIncident`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          location: alerta.location || "Ubicación no especificada",
+          detail: detalle || alerta.detail || "Sin detalle",
+          state: "Atendido",
+          isFall: true,
+          confirmedBy: codigo,
+          intervention: {
+            huboIntervencion: true,
+            receivedAt,
+            attendedAt: new Date().toISOString(),
+            attendedBy: codigo,
+            injuryLevel: nivelLesion,
+          },
+        }),
+      });
+
+      if (!res.ok) throw new Error(await res.text());
+      alert("✅ Atención registrada correctamente");
+    } catch (error) {
+      console.error("❌ Error al registrar atención:", error);
+      alert("⚠️ No se pudo registrar la atención");
+    }
+  }
+});
