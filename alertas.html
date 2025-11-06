@@ -3,34 +3,43 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Alertas del Día</title>
+  <title>Alertas Activas</title>
   <link rel="stylesheet" href="styles.css" />
+  <link rel="manifest" href="manifest.json" />
 </head>
 <body>
-  <div class="container">
-    <header class="header">
-      <h1>🚨 Alertas del Día</h1>
-      <button id="btnLogout" class="btn-logout">Cerrar sesión</button>
-    </header>
+  <header class="topbar">
+    <h2>🚨 Alertas del Día</h2>
+    <button id="btnLogout">Cerrar sesión</button>
+  </header>
 
-    <section id="alertas-lista" class="alertas-lista">
-      <p class="sin-alertas">Cargando alertas...</p>
-    </section>
-  </div>
+  <main id="alertas-lista" class="alertas-container">
+    <p>Cargando alertas...</p>
+  </main>
 
-  <!-- MODAL DE ATENCIÓN -->
+  <!-- Modal único -->
   <div id="modalAtencion" class="modal">
     <div class="modal-content">
-      <h3>🚨 Nueva Alerta</h3>
-      <p><b>Ubicación:</b> <span id="modalUbicacion"></span></p>
-      <textarea id="comentarioAdicional" placeholder="Escribe los detalles de la atención..."></textarea>
+      <h3>Registrar atención</h3>
+      <p id="modalUbicacion" style="font-weight: 500;"></p>
+      <textarea id="comentarioAdicional" placeholder="Comentario adicional..."></textarea>
       <div class="modal-buttons">
+        <button id="btnRegistrarAtencion">Aceptar</button>
         <button id="btnCancelarModal" class="btn-cancelar">Cancelar</button>
-        <button id="btnRegistrarAtencion" class="btn-confirmar">Aceptar</button>
       </div>
     </div>
   </div>
 
   <script src="app.js"></script>
+  <script>
+    // Escuchar mensajes del Service Worker
+    if (navigator.serviceWorker) {
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        if (event.data?.tipo === "alerta") {
+          window.postMessage(event.data, "*");
+        }
+      });
+    }
+  </script>
 </body>
 </html>
