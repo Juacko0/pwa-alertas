@@ -202,14 +202,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       modal.setAttribute("aria-hidden", "true");
     };
 
-    btnRegistrar.onclick = async () => {
+   btnRegistrar.onclick = async () => {
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const codigo = user?.codigo || "Desconocido";
 
+  // ✅ Leemos todos los campos que el usuario puede editar en el modal
+  const reportedBy = document.getElementById("input-resident")?.value?.trim() || "No registrado";
+  const location = document.getElementById("input-location")?.value?.trim() || "Sin ubicación especificada";
+  const detail = document.getElementById("input-detail")?.value?.trim() || "Sin detalles adicionales";
+  const injuryLevel = parseInt(document.getElementById("input-injuryLevel")?.value, 10) || 1;
+
   const bodyData = {
     attendedBy: codigo,
-    injuryLevel: parseInt(levelSel.value, 10) || 1,
-    confirmedBy: codigo
+    injuryLevel,
+    confirmedBy: codigo,
+    reportedBy,
+    location,
+    detail
   };
 
   try {
