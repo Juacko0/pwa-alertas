@@ -117,7 +117,8 @@ function mostrarModalAtencion(alerta) {
   modal.className = "fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50";
 
   modal.innerHTML = `
-    <div class="bg-white text-black rounded-2xl shadow-xl p-6 w-96 max-h-[90vh] overflow-y-auto">
+  <div class="bg-white text-black rounded-2xl shadow-xl p-6 w-11/12 max-w-md max-h-[90vh] overflow-y-auto flex flex-col justify-between">
+    <div>
       <h2 class="text-xl font-bold mb-4">🚨 Nueva Alerta</h2>
 
       <p class="text-gray-700 mb-2"><b>Ubicación:</b> ${alerta.location || "No especificada"}</p>
@@ -128,13 +129,14 @@ function mostrarModalAtencion(alerta) {
 
       <p class="text-sm text-gray-600 mb-2">Atendido por: <span class="font-bold">${codigo}</span></p>
       <textarea id="detalleIncidente" class="border w-full p-1 mb-3" placeholder="Detalles adicionales..."></textarea>
-
-      <div class="flex justify-center space-x-2">
-        <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
-        <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
-      </div>
     </div>
-  `;
+
+    <div class="flex justify-center space-x-2 mt-2">
+      <button id="btnCancelarAtencion" class="bg-gray-400 hover:bg-gray-500 text-white px-3 py-1 rounded">Cancelar</button>
+      <button id="btnConfirmarAtencion" class="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded">Confirmar</button>
+    </div>
+  </div>
+`;
 
   document.body.appendChild(modal);
 
