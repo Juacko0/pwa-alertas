@@ -92,16 +92,25 @@ self.addEventListener("push", (event) => {
     (async () => {
       // Mostrar la notificación
       await self.registration.showNotification(title, {
-        body,
-        icon,
-        badge: "/icons/icon.png",
-        vibrate: [200, 100, 200],
-        data: { url: "/alertas.html" },
-        actions: [
-          { action: "ver", title: "🔎 Ver alerta" },
-          { action: "cerrar", title: "❌ Cerrar" }
-        ]
-      });
+  body,
+  icon,
+  badge: "/icons/icon.png",
+  vibrate: [200, 100, 200],
+  data: {
+    url: "/alertas.html",
+    alerta: {
+      _id: data.data?._id || data._id,
+      location: data.data?.location || data.location,
+      detail: data.data?.detail || data.detail,
+      isFall: data.data?.isFall || data.isFall,
+      createdAt: data.data?.createdAt || data.createdAt
+    }
+  },
+  actions: [
+    { action: "ver", title: "🔎 Ver alerta" },
+    { action: "cerrar", title: "❌ Cerrar" }
+  ]
+});
 
       // 🔁 Enviar mensaje a la app abierta para mostrar el modal automáticamente
       const clientsList = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
@@ -127,28 +136,26 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
-  const data = event.notification.data || {};
-  
-  // Forzar que _id exista
-  if (!data._id && data.id) data._id = data.id;
+  const notifData = event.notification.data || {};
+  const alerta = notifData.alerta || {}; // 👈 extraemos los datos de la alerta
 
   event.waitUntil(
     (async () => {
       const allClients = await clients.matchAll({ type: "window", includeUncontrolled: true });
       const appUrl = new URL("/alertas.html", self.location.origin).href;
 
-      // Si ya hay una ventana abierta, enfocarla y enviar mensaje
+      // Si hay una ventana abierta de alertas.html, enfocarla y enviarle la alerta
       for (const client of allClients) {
         if (client.url.startsWith(appUrl) && "focus" in client) {
-          client.focus();
-          client.postMessage({ tipo: "alerta", mensaje: data });
+          await client.focus();
+          client.postMessage({ tipo: "alerta", mensaje: alerta });
           return;
         }
       }
 
-      // Si no hay ventana abierta, abrir nueva con alertaData
+      // Si no hay ventana abierta, abrir una nueva con los datos de la alerta
       const params = new URLSearchParams({
-        alertaData: JSON.stringify(data),
+        alertaData: JSON.stringify(alerta),
       });
       await clients.openWindow(`${appUrl}?${params.toString()}`);
     })()
