@@ -18,10 +18,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   await cargarAlertas();
   await registrarServiceWorkerYSuscripcion();
 
-  // variable global para el incidente actual
-  let incidenteSeleccionado = null;
+  let incidenteSeleccionado = null; // 🔹 Guardará el ID del incidente actual
 
-  // Escucha desde SW o mensajes push
+  // -----------------------
+  // Escucha de notificaciones
+  // -----------------------
   if (navigator.serviceWorker) {
     navigator.serviceWorker.addEventListener("message", (event) => {
       if (event.data?.tipo === "alerta") {
@@ -38,7 +39,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // -----------------------
-  // Funciones
+  // Función: Cargar alertas
   // -----------------------
   async function cargarAlertas() {
     try {
@@ -66,11 +67,11 @@ document.addEventListener("DOMContentLoaded", async () => {
             <p><strong>Nivel de lesión:</strong> ${escapeHtml(String(alerta.intervention?.injuryLevel || "N/A"))}</p>
             <p><strong>Hora de atención:</strong> ${
               alerta.intervention?.attendedAt
-                ? new Date(alerta.intervention.attendedAt).toLocaleString()
+                ? new Date(alerta.intervention.attendedAt).toLocaleString("es-PE")
                 : "—"
             }</p>
           ` : ""}
-          <p><small>Registrado: ${new Date(alerta.createdAt || alerta.time || Date.now()).toLocaleString()}</small></p>
+          <p><small>Registrado: ${new Date(alerta.createdAt || alerta.time || Date.now()).toLocaleString("es-PE")}</small></p>
           ${alerta.state !== "Atendido" ? `<button class="btn-atender" data-id="${alerta._id}">Atender</button>` : ""}
         `;
         lista.appendChild(card);
@@ -81,6 +82,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         btn.addEventListener("click", () => {
           const id = btn.dataset.id;
           const alerta = data.find((a) => a._id === id);
+          if (!alerta) {
+            alert("⚠️ No se encontró la alerta seleccionada.");
+            return;
+          }
           mostrarModalAtencion(alerta);
         });
       });
@@ -90,6 +95,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
+  // -----------------------
+  // Registrar Service Worker
+  // -----------------------
   async function registrarServiceWorkerYSuscripcion() {
     if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
       console.warn("⚠️ Este navegador no soporta Service Workers o Push API.");
@@ -143,26 +151,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function parseAlertaPayload(payload) {
-    if (!payload) return { detail: "Nueva alerta" };
-    try {
-      if (typeof payload === "string") {
-        try {
-          const parsed = JSON.parse(payload);
-          return parsed;
-        } catch {
-          return { detail: payload };
-        }
-      } else if (typeof payload === "object") {
-        return payload;
-      } else {
-        return { detail: String(payload) };
-      }
-    } catch {
-      return { detail: "Nueva alerta" };
-    }
-  }
-
   // -----------------------
   // Modal de atención
   // -----------------------
@@ -170,23 +158,21 @@ document.addEventListener("DOMContentLoaded", async () => {
     const modal = document.getElementById("modalAtencion");
     if (!modal) return console.error("❌ No existe #modalAtencion en el DOM");
 
-    incidenteSeleccionado = alerta._id || null;
+    if (!alerta || !alerta._id) {
+      alert("⚠️ No se puede abrir el modal: alerta sin ID válido.");
+      return;
+    }
 
-    const locInp = document.getElementById("input-location");
-    const resInp = document.getElementById("input-resident");
-    const detailInp = document.getElementById("input-detail");
-    const isFallInp = document.getElementById("input-isFall");
-    const huboInp = document.getElementById("input-huboIntervencion");
-    const levelSel = document.getElementById("input-injuryLevel");
-    const extraInp = document.getElementById("input-detalleExtra");
+    incidenteSeleccionado = alerta._id; // ✅ Se asigna correctamente
 
-    locInp.value = alerta.location || "";
-    resInp.value = alerta.residentName || "";
-    detailInp.value = alerta.detail || "";
-    isFallInp.checked = Boolean(alerta.isFall);
-    huboInp.checked = Boolean(alerta.intervention?.huboIntervencion);
-    levelSel.value = String(alerta.intervention?.injuryLevel || "1");
-    extraInp.value = "";
+    // Cargar datos en campos
+    document.getElementById("input-location").value = alerta.location || "";
+    document.getElementById("input-resident").value = alerta.residentName || "";
+    document.getElementById("input-detail").value = alerta.detail || "";
+    document.getElementById("input-isFall").checked = Boolean(alerta.isFall);
+    document.getElementById("input-huboIntervencion").checked = Boolean(alerta.intervention?.huboIntervencion);
+    document.getElementById("input-injuryLevel").value = String(alerta.intervention?.injuryLevel || "1");
+    document.getElementById("input-detalleExtra").value = "";
 
     modal.classList.add("show");
     modal.setAttribute("aria-hidden", "false");
@@ -197,6 +183,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     btnCancelar.onclick = () => {
       modal.classList.remove("show");
       modal.setAttribute("aria-hidden", "true");
+      incidenteSeleccionado = null;
     };
 
     btnRegistrar.onclick = async () => {
@@ -208,11 +195,12 @@ document.addEventListener("DOMContentLoaded", async () => {
       const user = JSON.parse(localStorage.getItem("user") || "{}");
       const codigo = user?.codigo || "Desconocido";
 
-      const horaAtencion = new Date().toISOString();
+      // 🕒 Hora local
+      const horaAtencion = new Date().toLocaleString("es-PE", { hour12: false });
 
       const bodyData = {
         attendedBy: codigo,
-        injuryLevel: parseInt(levelSel.value, 10) || 1,
+        injuryLevel: parseInt(document.getElementById("input-injuryLevel").value, 10) || 1,
         attendedAt: horaAtencion,
         confirmedBy: codigo,
       };
@@ -235,6 +223,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         alert("✅ Intervención registrada correctamente");
         modal.classList.remove("show");
         modal.setAttribute("aria-hidden", "true");
+        limpiarCamposModal();
         await cargarAlertas();
       } catch (err) {
         console.error("❌ Error al registrar intervención:", err);
@@ -243,7 +232,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     };
   }
 
-  // util
+  function limpiarCamposModal() {
+    document.getElementById("input-location").value = "";
+    document.getElementById("input-resident").value = "";
+    document.getElementById("input-detail").value = "";
+    document.getElementById("input-isFall").checked = false;
+    document.getElementById("input-huboIntervencion").checked = false;
+    document.getElementById("input-injuryLevel").value = "1";
+    document.getElementById("input-detalleExtra").value = "";
+  }
+
+  // -----------------------
+  // Utilidad para sanitizar HTML
+  // -----------------------
   function escapeHtml(str = "") {
     return String(str)
       .replaceAll("&", "&amp;")
@@ -251,5 +252,23 @@ document.addEventListener("DOMContentLoaded", async () => {
       .replaceAll(">", "&gt;")
       .replaceAll('"', "&quot;")
       .replaceAll("'", "&#039;");
+  }
+
+  function parseAlertaPayload(payload) {
+    if (!payload) return { detail: "Nueva alerta" };
+    try {
+      if (typeof payload === "string") {
+        try {
+          return JSON.parse(payload);
+        } catch {
+          return { detail: payload };
+        }
+      } else if (typeof payload === "object") {
+        return payload;
+      }
+      return { detail: String(payload) };
+    } catch {
+      return { detail: "Nueva alerta" };
+    }
   }
 });
