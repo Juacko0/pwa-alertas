@@ -233,3 +233,76 @@ body {
     font-size: 1.1rem;
   }
 }
+
+/* === LOGIN === */
+.login-container {
+  background: #1f2833;
+  padding: 40px 32px;
+  border-radius: 16px;
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  width: 100%;
+  max-width: 380px;
+  margin-top: 120px;
+  animation: fadeIn 0.5s ease-in;
+}
+
+.login-container h2 {
+  color: #66fcf1;
+  margin-bottom: 24px;
+  font-size: 1.6rem;
+}
+
+/* FORM LOGIN */
+#loginForm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+#loginForm input {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #45a29e;
+  background-color: #0b0c10;
+  color: #ffffff;
+  font-size: 1rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+#loginForm input::placeholder {
+  color: #9eaebc;
+}
+
+#loginForm input:focus {
+  border-color: #66fcf1;
+  box-shadow: 0 0 8px rgba(102, 252, 241, 0.3);
+}
+
+#loginForm button {
+  padding: 12px;
+  background-color: #45a29e;
+  color: white;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.25s, transform 0.2s ease;
+}
+
+#loginForm button:hover {
+  background-color: #66fcf1;
+  color: #0b0c10;
+  transform: scale(1.03);
+}
+
+@media (max-width: 480px) {
+  .login-container {
+    padding: 28px 22px;
+  }
+  .login-container h2 {
+    font-size: 1.3rem;
+  }
+}
